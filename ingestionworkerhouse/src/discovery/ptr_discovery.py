@@ -20,7 +20,7 @@ class PTRDiscovery:
     """Discovers PTR filing URLs from the House Clerk website."""
     
     BASE_URL = "https://disclosures-clerk.house.gov"
-    SEARCH_URL = f"{BASE_URL}/PublicDisclosure/FinancialDisclosure"
+    DOWNLOAD_URL = f"{BASE_URL}/FinancialDisclosure"
     
     def __init__(self, settings: Settings):
         self.settings = settings
@@ -173,124 +173,94 @@ class PTRDiscovery:
         return filings
     
     async def _discover_page_filings(self, year: int, page: int) -> List[Dict[str, Any]]:
-        """Discover PTR filings on a specific page."""
+        """Discover PTR filings by finding year-based download links."""
         
-        async def _fetch_page():
-            params = {
-                'Year': str(year),
-                'FilingType': 'P',  # PTR filings
-                'Page': str(page)
-            }
-            
-            async with self.session.get(self.SEARCH_URL, params=params) as response:
-                if response.status == 404:
-                    return None  # No more pages
-                elif response.status != 200:
+        # For year-based downloads, we only need to process page 1
+        if page > 1:
+            return []
+        
+        async def _fetch_download_page():
+            async with self.session.get(self.DOWNLOAD_URL) as response:
+                if response.status != 200:
                     raise RetryableError(f"HTTP {response.status}: {response.reason}")
-                
                 return await response.text()
         
-        # Fetch page with retry
+        # Fetch the main download page
         html_content = await retry_with_backoff(
-            _fetch_page,
+            _fetch_download_page,
             max_attempts=self.settings.MAX_RETRIES,
             base_delay=1.0,
             max_delay=10.0
         )
         
-        if html_content is None:
-            return []  # No more pages
-        
-        # Parse the HTML
+        # Parse the HTML to find year-based download links
         soup = BeautifulSoup(html_content, 'html.parser')
         
-        # Find filing entries in the results table
-        filings = []
+        # Look for download links that match the specified year
+        year_download_url = self._find_year_download_link(soup, year)
         
-        # Look for the results table
-        results_table = soup.find('table', {'class': 'table'}) or soup.find('table')
-        
-        if not results_table:
-            logger.debug("No results table found", year=year, page=page)
+        if not year_download_url:
+            logger.debug("No download link found for year", year=year)
             return []
         
-        # Parse table rows
-        rows = results_table.find_all('tr')[1:]  # Skip header row
+        # Determine if this is the current year (frequently updated) or historical (static)
+        current_year = datetime.utcnow().year
+        is_current_year = year == current_year
         
-        for row in rows:
-            try:
-                filing = self._parse_filing_row(row, year)
-                if filing:
-                    filings.append(filing)
-            except Exception as e:
-                logger.warning(
-                    "Failed to parse filing row",
-                    year=year,
-                    page=page,
-                    error=str(e)
-                )
-                continue
+        # Create a single "filing" entry that represents the year's download
+        filing_data = {
+            'filing_id': f"ptr_bulk_{year}",
+            'member_name': f"Bulk PTR Filings {year}",
+            'filing_date': None,
+            'doc_url': year_download_url,
+            'report_type': 'PTR_BULK',
+            'year': year,
+            'source': 'house_clerk',
+            'discovered_at': datetime.utcnow().isoformat(),
+            'is_bulk_download': True,
+            'is_current_year': is_current_year,
+            'update_frequency': 'frequent' if is_current_year else 'static'
+        }
         
+        self.discovered_urls.add(year_download_url)
         metrics.increment("discovery.pages_processed")
-        return filings
+        
+        return [filing_data]
     
-    def _parse_filing_row(self, row, year: int) -> Optional[Dict[str, Any]]:
-        """Parse a single filing row from the results table."""
-        cells = row.find_all('td')
+    def _find_year_download_link(self, soup: BeautifulSoup, year: int) -> Optional[str]:
+        """Find the download link for a specific year."""
         
-        if len(cells) < 4:
-            return None
+        year_str = str(year)
         
-        try:
-            # Extract basic information
-            name_cell = cells[0]
-            filing_date_cell = cells[1]
-            doc_link_cell = cells[2] if len(cells) > 2 else None
-            
-            # Extract member name
-            member_name = name_cell.get_text(strip=True)
-            if not member_name:
-                return None
-            
-            # Extract filing date
-            filing_date_str = filing_date_cell.get_text(strip=True)
-            filing_date = self._parse_date(filing_date_str)
-            
-            # Extract document URL
-            doc_url = None
-            if doc_link_cell:
-                link = doc_link_cell.find('a')
-                if link and link.get('href'):
-                    doc_url = urljoin(self.BASE_URL, link['href'])
-            
-            if not doc_url:
-                return None
-            
-            # Generate a filing ID from the URL
-            filing_id = self._extract_filing_id(doc_url)
-            
-            # Extract additional metadata from URL or page
-            report_type = 'PTR'  # Periodic Transaction Report
-            
-            filing_data = {
-                'filing_id': filing_id,
-                'member_name': member_name,
-                'filing_date': filing_date,
-                'doc_url': doc_url,
-                'report_type': report_type,
-                'year': year,
-                'source': 'house_clerk',
-                'discovered_at': datetime.utcnow().isoformat()
-            }
-            
-            # Add to discovered URLs set
-            self.discovered_urls.add(doc_url)
-            
-            return filing_data
-            
-        except Exception as e:
-            logger.warning("Failed to parse filing row", error=str(e))
-            return None
+        # First, look for the specific pattern: /public_disc/financial-pdfs/{YEAR}FD.zip
+        expected_href = f"/public_disc/financial-pdfs/{year_str}FD.zip"
+        
+        # Look for links with this exact href pattern
+        all_links = soup.find_all('a', href=True)
+        
+        for link in all_links:
+            href = link.get('href', '')
+            if href == expected_href:
+                full_url = urljoin(self.BASE_URL, href)
+                logger.info(
+                    "Found year download link",
+                    year=year,
+                    text=link.get_text(strip=True),
+                    url=full_url
+                )
+                return full_url
+        
+        # If not found in HTML, construct the URL directly since we know the pattern
+        # This is a fallback in case the page structure changes
+        constructed_url = f"{self.BASE_URL}/public_disc/financial-pdfs/{year_str}FD.zip"
+        
+        logger.info(
+            "Using constructed year download URL",
+            year=year,
+            url=constructed_url
+        )
+        
+        return constructed_url
     
     def _extract_filing_id(self, doc_url: str) -> str:
         """Extract a unique filing ID from the document URL."""
