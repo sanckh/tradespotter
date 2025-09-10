@@ -20,8 +20,8 @@ class Settings:
     THROTTLE_MS: int = int(os.getenv("THROTTLE_MS", "1000"))
     
     # Database connection
-    SUPABASE_URL: str = os.getenv("SUPABASE_URL", "")
-    SUPABASE_SERVICE_ROLE_KEY: str = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
+    SUPABASE_URL: str = os.getenv("SUPABASE_URL", "http://localhost:54321")
+    SUPABASE_SERVICE_ROLE_KEY: str = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "test_key")
     
     # Storage settings
     STORAGE_BUCKET: str = os.getenv("STORAGE_BUCKET", "ptr-archive")
@@ -35,6 +35,10 @@ class Settings:
     # Retry settings
     MAX_RETRIES: int = int(os.getenv("MAX_RETRIES", "3"))
     RETRY_BACKOFF_FACTOR: float = float(os.getenv("RETRY_BACKOFF_FACTOR", "2"))
+    
+    # Additional attributes for compatibility
+    max_retries: int = MAX_RETRIES
+    max_concurrency: int = MAX_CONCURRENCY
     
     # Health check
     HEALTH_CHECK_PORT: int = int(os.getenv("HEALTH_CHECK_PORT", "8080"))

@@ -26,7 +26,7 @@ class DataUpserter:
         
     async def __aenter__(self):
         """Async context manager entry."""
-        self.db_connection = DatabaseConnection(self.settings)
+        self.db_connection = DatabaseConnection()
         await self.db_connection.connect()
         
         self.member_repo = CongressMemberRepository(self.db_connection)
@@ -114,6 +114,142 @@ class DataUpserter:
                 )
                 metrics.increment("data_upsert.filing_errors")
                 raise
+
+    async def upsert_bulk_filing_data(
+        self,
+        filing_id: str,
+        filings: List[Dict[str, Any]]
+    ) -> Dict[str, Any]:
+        """
+        Upsert bulk PTR filing metadata to database.
+        
+        Args:
+            filing_id: Bulk filing identifier
+            filings: List of normalized filing dictionaries
+            
+        Returns:
+            Dictionary with upsert results and statistics
+        """
+        logger.info(
+            "Starting bulk filing data upsert",
+            filing_id=filing_id,
+            filings_count=len(filings)
+        )
+        
+        with performance_timer("data_upsert.bulk_filings", {"filing_id": filing_id}):
+            try:
+                results = {
+                    'filing_id': filing_id,
+                    'filings_processed': 0,
+                    'filings_upserted': 0,
+                    'members_created': 0,
+                    'errors': 0,
+                    'processing_time': datetime.utcnow().isoformat()
+                }
+                
+                # Process filings in batches
+                batch_size = 100
+                for i in range(0, len(filings), batch_size):
+                    batch = filings[i:i + batch_size]
+                    
+                    batch_results = await self._process_filing_batch(batch, filing_id)
+                    
+                    # Aggregate results
+                    results['filings_processed'] += batch_results['processed']
+                    results['filings_upserted'] += batch_results['upserted']
+                    results['members_created'] += batch_results['members_created']
+                    results['errors'] += batch_results['errors']
+                
+                logger.info(
+                    "Bulk filing data upsert completed",
+                    filing_id=filing_id,
+                    **{k: v for k, v in results.items() if k not in ['filing_id', 'processing_time']}
+                )
+                
+                metrics.increment("data_upsert.bulk_filings_processed")
+                metrics.gauge("data_upsert.filings_per_bulk", len(filings))
+                
+                return results
+                
+            except Exception as e:
+                logger.error(
+                    "Bulk filing data upsert failed",
+                    filing_id=filing_id,
+                    error=str(e)
+                )
+                metrics.increment("data_upsert.bulk_filing_errors")
+                raise
+
+    async def _process_filing_batch(
+        self, 
+        filings: List[Dict[str, Any]], 
+        filing_id: str
+    ) -> Dict[str, int]:
+        """Process a batch of filing records."""
+        results = {
+            'processed': 0,
+            'upserted': 0,
+            'members_created': 0,
+            'errors': 0
+        }
+        
+        for filing_data in filings:
+            try:
+                # Extract member information
+                member_name = filing_data.get('member_name')
+                if not member_name:
+                    logger.warning("Missing member name", filing_data=filing_data)
+                    results['errors'] += 1
+                    continue
+                
+                # Upsert congress member
+                member = await self._upsert_congress_member(member_name)
+                if not member:
+                    logger.warning("Failed to upsert member", member_name=member_name)
+                    results['errors'] += 1
+                    continue
+                
+                # Store PTR filing as disclosure record
+                disclosure = await self._upsert_ptr_disclosure(member, filing_data)
+                if disclosure:
+                    logger.debug("Created disclosure record", disclosure_id=disclosure.id)
+                
+                results['processed'] += 1
+                results['upserted'] += 1
+                
+                logger.debug(
+                    "Filing processed successfully",
+                    doc_id=filing_data.get('doc_id'),
+                    member_name=member_name,
+                    member_id=member.id if member else None
+                )
+                
+            except Exception as e:
+                logger.warning(
+                    "Filing processing failed",
+                    filing_data=filing_data,
+                    error=str(e)
+                )
+                results['errors'] += 1
+        
+        return results
+    
+    async def _upsert_ptr_disclosure(self, member: 'CongressMember', filing_data: Dict[str, Any]) -> Optional[Any]:
+        """Create a disclosure record for PTR filing."""
+        try:
+            # For now, we'll just log the disclosure data
+            # In the future, we can create actual disclosure records
+            logger.debug(
+                "PTR disclosure data",
+                member_id=member.id,
+                doc_id=filing_data.get('doc_id'),
+                filing_type=filing_data.get('filing_type'),
+                filing_date=filing_data.get('filing_date')
+            )
+            return {"id": "placeholder"}  # Return placeholder for now
+        except Exception as e:
+            logger.warning("Failed to create disclosure", error=str(e))
+            return None
     
     async def _upsert_congress_member(self, member_name: str) -> Optional[CongressMember]:
         """Upsert congress member by name."""

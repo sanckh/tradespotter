@@ -29,7 +29,7 @@ class DatabaseConnection:
             )
             
             # Test connection
-            result = self.supabase.table("congress_members").select("id").limit(1).execute()
+            result = self.supabase.table("politicians").select("id").limit(1).execute()
             logger.info("Database connection established", service="supabase")
             
         except Exception as e:
@@ -65,7 +65,7 @@ class DatabaseConnection:
 
 
 class CongressMemberRepository:
-    """Repository for congress_members operations."""
+    """Repository for politicians operations (legacy name for compatibility)."""
     
     def __init__(self, db: DatabaseConnection):
         self.db = db
@@ -74,30 +74,30 @@ class CongressMemberRepository:
         """Find congress member by full name."""
         try:
             client = self.db.get_supabase_client()
-            result = client.table("congress_members").select("*").eq("full_name", full_name).execute()
+            result = client.table("politicians").select("*").eq("full_name", full_name).execute()
             
             if result.data:
                 return result.data[0]
             return None
             
         except Exception as e:
-            logger.error("Failed to find congress member", name=full_name, error=str(e))
+            logger.error("Failed to find politician", name=full_name, error=str(e))
             raise
     
     async def create(self, member_data: Dict[str, Any]) -> Dict[str, Any]:
         """Create new congress member record."""
         try:
             client = self.db.get_supabase_client()
-            result = client.table("congress_members").insert(member_data).execute()
+            result = client.table("politicians").insert(member_data).execute()
             
             if result.data:
-                logger.info("Congress member created", member_id=result.data[0]["id"])
+                logger.info("Politician created", member_id=result.data[0]["id"])
                 return result.data[0]
             
-            raise Exception("Failed to create congress member")
+            raise Exception("Failed to create politician")
             
         except Exception as e:
-            logger.error("Failed to create congress member", data=member_data, error=str(e))
+            logger.error("Failed to create politician", data=member_data, error=str(e))
             raise
 
 
@@ -180,19 +180,19 @@ class PoliticianRepository:
 
 
 class DisclosureRepository:
-    """Repository for disclosure tracking - uses external_ids in congress_members."""
+    """Repository for disclosure tracking - uses external_ids in politicians."""
     
     def __init__(self, db: DatabaseConnection):
         self.db = db
         self.congress_member_repo = CongressMemberRepository(db)
     
     async def find_by_report_id(self, source: str, report_id: str) -> Optional[Dict[str, Any]]:
-        """Find disclosure by source and report_id in congress_members external_ids."""
+        """Find disclosure by source and report_id in politicians external_ids."""
         try:
             client = self.db.get_supabase_client()
             
-            # Search for congress member with this report_id in external_ids
-            result = client.table("congress_members").select("*").execute()
+            # Search for politician with this report_id in external_ids
+            result = client.table("politicians").select("*").execute()
             
             for member in result.data or []:
                 external_ids = member.get("external_ids", {})
@@ -215,16 +215,16 @@ class DisclosureRepository:
             raise
     
     async def create(self, disclosure_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Create new disclosure record by updating congress_member external_ids."""
+        """Create new disclosure record by updating politician external_ids."""
         try:
             member_id = disclosure_data["member_id"]
             client = self.db.get_supabase_client()
             
             # Get current member data
-            member_result = client.table("congress_members").select("*").eq("id", member_id).execute()
+            member_result = client.table("politicians").select("*").eq("id", member_id).execute()
             
             if not member_result.data:
-                raise Exception(f"Congress member not found: {member_id}")
+                raise Exception(f"Politician not found: {member_id}")
             
             member = member_result.data[0]
             external_ids = member.get("external_ids", {})
@@ -245,7 +245,7 @@ class DisclosureRepository:
             external_ids["processed_reports"] = processed_reports
             
             # Update member
-            update_result = client.table("congress_members").update({
+            update_result = client.table("politicians").update({
                 "external_ids": external_ids
             }).eq("id", member_id).execute()
             

@@ -184,7 +184,7 @@ Overall Status: HEALTHY
 ✓ normalizer: healthy
 ```
 
-### Step 4: Test Discovery
+### Step 4: Test Discovery and Downloading
 
 Run discovery only to test the scraping:
 
@@ -193,6 +193,17 @@ python -m src.main --mode discovery --limit 5
 ```
 
 This will find 5 recent PTR filings without processing them.
+
+Test the downloader with discovered zip files:
+
+```bash
+python -m src.main --mode download --limit 1
+```
+
+This will:
+1. Discover PTR zip file URLs
+2. Download and extract one zip file
+3. Show the extracted TXT/XML file structure
 
 ### Step 5: Run Full Pipeline (Test)
 

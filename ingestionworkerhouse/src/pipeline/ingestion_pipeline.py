@@ -8,7 +8,9 @@ import structlog
 from ..config.settings import Settings
 from ..discovery.ptr_discovery import PTRDiscovery
 from ..downloader.pdf_downloader import PDFDownloader
+from ..downloader.zip_downloader import ZipDownloader
 from ..parser.pdf_parser import PDFParser
+from ..parser.txt_parser import BulkTXTParser
 from ..normalizer.data_normalizer import DataNormalizer
 from ..upserter.data_upserter import DataUpserter
 from ..utils.logging_config import performance_timer, metrics, get_logger
@@ -186,11 +188,11 @@ class IngestionPipeline:
                     return await self._parse_single_pdf(parser, download_result)
             
             # Execute parsing tasks
-            tasks = [parse_single_file(result) for result in download_results]
-            parse_task_results = await asyncio.gather(*tasks, return_exceptions=True)
+            parse_tasks = [parse_single_file(dr) for dr in download_results]
+            results = await asyncio.gather(*parse_tasks, return_exceptions=True)
             
             # Process results
-            for i, result in enumerate(parse_task_results):
+            for i, result in enumerate(results):
                 if isinstance(result, Exception):
                     logger.error(
                         "Parse task failed",
@@ -209,6 +211,66 @@ class IngestionPipeline:
             )
             
             metrics.gauge("pipeline.trades_parsed", self.stats['trades_parsed'])
+            
+            return parse_results
+    
+    async def _run_txt_parse_stage(self, download_results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Run the TXT parsing stage for bulk downloads."""
+        logger.info("Starting TXT parse stage", files_count=len(download_results))
+        
+        parse_results = []
+        bulk_parser = BulkTXTParser()
+        
+        with performance_timer("pipeline.txt_parse"):
+            for download_result in download_results:
+                try:
+                    # Extract file information from download result
+                    extracted_files = download_result.get('extracted_files', [])
+                    filing_id = download_result.get('filing_id')
+                    
+                    if not extracted_files:
+                        logger.warning("No extracted files found", filing_id=filing_id)
+                        continue
+                    
+                    # Parse TXT files from this download
+                    parsed_filings, parse_errors = await bulk_parser.parse_bulk_files(extracted_files)
+                    
+                    if parsed_filings:
+                        # Convert parsed filings to expected format
+                        parse_result = {
+                            'filing_id': filing_id,
+                            'bulk_filings': parsed_filings,
+                            'parse_errors': parse_errors,
+                            'download_metadata': download_result,
+                            'filings_count': len(parsed_filings)
+                        }
+                        parse_results.append(parse_result)
+                        
+                        # Update stats (using filings_count instead of trades_parsed for bulk)
+                        self.stats['trades_parsed'] += len(parsed_filings)
+                        
+                        logger.info(
+                            "TXT parsing completed for filing",
+                            filing_id=filing_id,
+                            filings_parsed=len(parsed_filings),
+                            errors=len(parse_errors)
+                        )
+                    
+                except Exception as e:
+                    logger.error(
+                        "TXT parse failed",
+                        filing_id=download_result.get('filing_id'),
+                        error=str(e)
+                    )
+                    self.stats['errors'] += 1
+            
+            logger.info(
+                "TXT parse stage completed",
+                files_processed=len(parse_results),
+                total_filings_parsed=self.stats['trades_parsed']
+            )
+            
+            metrics.gauge("pipeline.txt_filings_parsed", self.stats['trades_parsed'])
             
             return parse_results
     
@@ -508,3 +570,305 @@ class IngestionPipeline:
         logger.info("Pipeline health check completed", status=health_status['overall_status'])
         
         return health_status
+    
+    async def run_download_only(
+        self,
+        year_start: Optional[int] = None,
+        year_end: Optional[int] = None,
+        limit: Optional[int] = None
+    ) -> Dict[str, Any]:
+        """Run discovery and download stages only."""
+        logger.info("Running discovery-only pipeline")
+        
+        self.stats['start_time'] = datetime.utcnow()
+        
+        with performance_timer("pipeline.download_only"):
+            try:
+                # Stage 1: Discovery
+                filings = await self._run_discovery_stage(year_start, year_end, limit)
+                
+                if not filings:
+                    logger.warning("No filings discovered")
+                    return self._compile_download_results([])
+                
+                # Stage 2: Download zip files
+                download_results = await self._run_zip_download_stage(filings)
+                
+                self.stats['end_time'] = datetime.utcnow()
+                
+                results = self._compile_download_results(download_results)
+                
+                logger.info("Download-only pipeline completed", **results)
+                return results
+                
+            except Exception as e:
+                self.stats['end_time'] = datetime.utcnow()
+                self.stats['errors'] += 1
+                
+                logger.error("Download-only pipeline failed", error=str(e))
+                raise
+
+    async def run_bulk_pipeline(
+        self,
+        year_start: Optional[int] = None,
+        year_end: Optional[int] = None,
+        limit: Optional[int] = None
+    ) -> Dict[str, Any]:
+        """
+        Run the complete bulk ingestion pipeline for PTR zip files.
+        
+        This pipeline: discovers -> downloads -> parses TXT -> normalizes -> upserts
+        """
+        logger.info("Running bulk ingestion pipeline")
+        
+        self.stats['start_time'] = datetime.utcnow()
+        
+        with performance_timer("pipeline.bulk_full"):
+            try:
+                # Stage 1: Discovery
+                filings = await self._run_discovery_stage(year_start, year_end, limit)
+                
+                if not filings:
+                    logger.warning("No filings discovered")
+                    return self._compile_results()
+                
+                # Stage 2: Download zip files
+                download_results = await self._run_zip_download_stage(filings)
+                
+                if not download_results:
+                    logger.warning("No files downloaded")
+                    return self._compile_results()
+                
+                # Stage 3: Parse TXT files
+                parse_results = await self._run_txt_parse_stage(download_results)
+                
+                if not parse_results:
+                    logger.warning("No files parsed")
+                    return self._compile_results()
+                
+                # Stage 4: Normalize bulk filing data
+                normalize_results = await self._run_bulk_normalize_stage(parse_results)
+                
+                # Stage 5: Upsert to database
+                upsert_results = await self._run_bulk_upsert_stage(normalize_results)
+                
+                self.stats['end_time'] = datetime.utcnow()
+                
+                results = self._compile_results()
+                
+                logger.info(
+                    "Bulk ingestion pipeline completed",
+                    **{k: v for k, v in results.items() if k not in ['start_time', 'end_time']}
+                )
+                
+                metrics.increment("pipeline.bulk_runs_completed")
+                return results
+                
+            except Exception as e:
+                self.stats['end_time'] = datetime.utcnow()
+                self.stats['errors'] += 1
+                
+                logger.error("Bulk ingestion pipeline failed", error=str(e))
+                metrics.increment("pipeline.bulk_runs_failed")
+                
+                raise
+    
+    async def _run_zip_download_stage(self, filings: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Run the zip download stage for bulk PTR files."""
+        logger.info("Starting zip download stage", filings_count=len(filings))
+        
+        with performance_timer("pipeline.zip_download"):
+            async with ZipDownloader(self.settings) as downloader:
+                # Prepare download tasks
+                download_tasks = []
+                
+                for filing in filings:
+                    if all(k in filing for k in ['doc_url', 'filing_id', 'year']):
+                        download_tasks.append(filing)
+                    else:
+                        logger.warning("Filing missing required fields", filing=filing)
+                        self.stats['errors'] += 1
+                
+                # Execute downloads
+                download_results = await downloader.download_batch(
+                    download_tasks,
+                    max_concurrent=self.settings.MAX_CONCURRENCY
+                )
+                
+                # Filter successful downloads
+                successful_downloads = [r for r in download_results if r is not None]
+                
+                self.stats['pdfs_downloaded'] = len(successful_downloads)  # Reusing this stat for zip downloads
+                
+                logger.info(
+                    "Zip download stage completed",
+                    attempted=len(download_tasks),
+                    successful=len(successful_downloads),
+                    failed=len(download_tasks) - len(successful_downloads)
+                )
+                
+                metrics.gauge("pipeline.zips_downloaded", len(successful_downloads))
+                
+                return successful_downloads
+    
+    async def _run_bulk_normalize_stage(self, parse_results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Run the bulk normalization stage for parsed filing data."""
+        logger.info("Starting bulk normalize stage", parse_results_count=len(parse_results))
+        
+        normalize_results = []
+        
+        with performance_timer("pipeline.bulk_normalize"):
+            for parse_result in parse_results:
+                try:
+                    filing_id = parse_result.get('filing_id')
+                    bulk_filings = parse_result.get('bulk_filings', [])
+                    
+                    if not bulk_filings:
+                        logger.debug("No bulk filings to normalize", filing_id=filing_id)
+                        continue
+                    
+                    # For bulk filings, we normalize the filing metadata (not trades)
+                    # Each filing becomes a record in our database
+                    normalized_filings = []
+                    
+                    for filing_data in bulk_filings:
+                        try:
+                            # Normalize individual filing
+                            normalized_filing = {
+                                'doc_id': filing_data.get('doc_id'),
+                                'member_name': filing_data.get('member_name'),
+                                'first_name': filing_data.get('first_name'),
+                                'last_name': filing_data.get('last_name'),
+                                'prefix': filing_data.get('prefix'),
+                                'suffix': filing_data.get('suffix'),
+                                'filing_type': filing_data.get('filing_type'),
+                                'filing_type_description': filing_data.get('filing_type_description'),
+                                'state_district': filing_data.get('state_district'),
+                                'filing_year': filing_data.get('filing_year'),
+                                'filing_date': filing_data.get('filing_date'),
+                                'source_year': filing_data.get('source_year'),
+                                'bulk_filing_id': filing_data.get('bulk_filing_id'),
+                                'row_number': filing_data.get('row_number')
+                            }
+                            
+                            normalized_filings.append(normalized_filing)
+                            
+                        except Exception as e:
+                            logger.warning(
+                                "Failed to normalize individual filing",
+                                doc_id=filing_data.get('doc_id'),
+                                error=str(e)
+                            )
+                    
+                    if normalized_filings:
+                        normalize_result = {
+                            'filing_id': filing_id,
+                            'normalized_filings': normalized_filings,
+                            'parse_metadata': parse_result,
+                            'filings_count': len(normalized_filings)
+                        }
+                        normalize_results.append(normalize_result)
+                        
+                        # Update stats
+                        self.stats['trades_normalized'] += len(normalized_filings)
+                        
+                        logger.info(
+                            "Bulk normalization completed for filing",
+                            filing_id=filing_id,
+                            filings_normalized=len(normalized_filings)
+                        )
+                    
+                except Exception as e:
+                    logger.error(
+                        "Bulk normalization failed",
+                        filing_id=parse_result.get('filing_id'),
+                        error=str(e)
+                    )
+                    self.stats['errors'] += 1
+            
+            logger.info(
+                "Bulk normalize stage completed",
+                filings_processed=len(normalize_results),
+                total_filings_normalized=self.stats['trades_normalized']
+            )
+            
+            metrics.gauge("pipeline.bulk_filings_normalized", self.stats['trades_normalized'])
+            
+            return normalize_results
+    
+    async def _run_bulk_upsert_stage(self, normalize_results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Run the bulk upsert stage for normalized filing data."""
+        logger.info("Starting bulk upsert stage", normalize_results_count=len(normalize_results))
+        
+        upsert_results = []
+        
+        with performance_timer("pipeline.bulk_upsert"):
+            async with DataUpserter(self.settings) as upserter:
+                for normalize_result in normalize_results:
+                    try:
+                        filing_id = normalize_result.get('filing_id')
+                        normalized_filings = normalize_result.get('normalized_filings', [])
+                        
+                        if not normalized_filings:
+                            logger.debug("No normalized filings to upsert", filing_id=filing_id)
+                            continue
+                        
+                        # Upsert bulk filing data
+                        upsert_result = await upserter.upsert_bulk_filing_data(
+                            filing_id=filing_id,
+                            filings=normalized_filings
+                        )
+                        
+                        if upsert_result:
+                            upsert_results.append(upsert_result)
+                            
+                            # Update stats
+                            upserted_count = upsert_result.get('filings_upserted', 0)
+                            self.stats['trades_upserted'] += upserted_count
+                            
+                            logger.info(
+                                "Bulk upsert completed for filing",
+                                filing_id=filing_id,
+                                filings_upserted=upserted_count
+                            )
+                        
+                    except Exception as e:
+                        logger.error(
+                            "Bulk upsert failed",
+                            filing_id=normalize_result.get('filing_id'),
+                            error=str(e)
+                        )
+                        self.stats['errors'] += 1
+            
+            logger.info(
+                "Bulk upsert stage completed",
+                filings_processed=len(upsert_results),
+                total_filings_upserted=self.stats['trades_upserted']
+            )
+            
+            metrics.gauge("pipeline.bulk_filings_upserted", self.stats['trades_upserted'])
+            
+            return upsert_results
+    
+    def _compile_download_results(self, download_results: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Compile download-only pipeline results."""
+        duration = None
+        if self.stats['start_time'] and self.stats['end_time']:
+            duration = (self.stats['end_time'] - self.stats['start_time']).total_seconds()
+        
+        # Count total extracted files
+        total_files_extracted = 0
+        for result in download_results:
+            total_files_extracted += len(result.get('extracted_files', []))
+        
+        return {
+            'pipeline_status': 'completed' if self.stats['errors'] == 0 else 'completed_with_errors',
+            'duration_seconds': duration,
+            'filings_discovered': self.stats['filings_discovered'],
+            'downloads_completed': len(download_results),
+            'files_extracted': total_files_extracted,
+            'total_errors': self.stats['errors'],
+            'download_details': download_results,
+            'start_time': self.stats['start_time'].isoformat() if self.stats['start_time'] else None,
+            'end_time': self.stats['end_time'].isoformat() if self.stats['end_time'] else None
+        }

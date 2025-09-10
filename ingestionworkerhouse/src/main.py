@@ -117,6 +117,48 @@ class PTRIngestionWorker:
             logger.error("Discovery mode failed", error=str(e))
             raise
     
+    async def run_download_mode(self, limit: Optional[int] = None):
+        """Run discovery and download only, then exit."""
+        logger.info("Starting PTR ingestion worker in download mode", limit=limit)
+        
+        try:
+            self.pipeline = IngestionPipeline(self.settings)
+            
+            # Run discovery and download only
+            results = await self.pipeline.run_download_only(limit=limit)
+            
+            logger.info("Download mode completed", **results)
+            
+            # Print download results
+            self._print_download_results(results)
+            
+            return results
+            
+        except Exception as e:
+            logger.error("Download mode failed", error=str(e))
+            raise
+
+    async def run_bulk_mode(self, limit: Optional[int] = None):
+        """Run complete bulk ingestion pipeline (discovery -> download -> parse -> normalize -> upsert)."""
+        logger.info("Starting PTR ingestion worker in bulk mode", limit=limit)
+        
+        try:
+            self.pipeline = IngestionPipeline(self.settings)
+            
+            # Run full bulk pipeline
+            results = await self.pipeline.run_bulk_pipeline(limit=limit)
+            
+            logger.info("Bulk mode completed", **results)
+            
+            # Print bulk results
+            self._print_bulk_results(results)
+            
+            return results
+            
+        except Exception as e:
+            logger.error("Bulk mode failed", error=str(e))
+            raise
+    
     def _setup_signal_handlers(self):
         """Setup signal handlers for graceful shutdown."""
         def signal_handler(signum, frame):
@@ -197,6 +239,54 @@ class PTRIngestionWorker:
                 print(f"  ... and {len(filings) - 10} more filings")
         
         print("="*60)
+    
+    def _print_download_results(self, results: dict):
+        """Print download results."""
+        print("\n" + "="*60)
+        print("PTR DOWNLOAD RESULTS")
+        print("="*60)
+        print(f"Filings Discovered: {results.get('filings_discovered', 0)}")
+        print(f"Downloads Completed: {results.get('downloads_completed', 0)}")
+        print(f"Total Files Extracted: {results.get('files_extracted', 0)}")
+        print(f"Duration: {results.get('duration_seconds', 0):.2f} seconds")
+        
+        if results.get('download_details'):
+            print("\nDownload Details:")
+            for i, download in enumerate(results['download_details'][:5]):  # Show first 5
+                print(f"  {i+1}. {download.get('filing_id', 'Unknown')}")
+                print(f"     Year: {download.get('year', 'Unknown')}")
+                print(f"     Zip Size: {download.get('zip_size', 0):,} bytes")
+                print(f"     Extracted Files: {len(download.get('extracted_files', []))}")
+                
+                for file_info in download.get('extracted_files', [])[:2]:  # Show first 2 files
+                    print(f"       - {file_info.get('filename', 'Unknown')} ({file_info.get('file_type', 'unknown')})")
+                print()
+        
+        print("="*60)
+
+    def _print_bulk_results(self, results: dict):
+        """Print bulk ingestion results."""
+        print("\n" + "="*60)
+        print("PTR BULK INGESTION RESULTS")
+        print("="*60)
+        print(f"Status: {results.get('pipeline_status', 'unknown')}")
+        
+        duration = results.get('duration_seconds')
+        print(f"Duration: {duration:.2f} seconds" if duration is not None else "Duration: N/A")
+        
+        print(f"Filings Discovered: {results.get('filings_discovered', 0)}")
+        print(f"Downloads Completed: {results.get('pdfs_downloaded', 0)}")
+        print(f"Filings Parsed: {results.get('trades_parsed', 0)}")
+        print(f"Filings Normalized: {results.get('trades_normalized', 0)}")
+        print(f"Members Upserted: {results.get('trades_upserted', 0)}")
+        print(f"Total Errors: {results.get('total_errors', 0)}")
+        
+        if results.get('total_errors', 0) == 0:
+            print("\n✅ Bulk ingestion completed successfully!")
+        else:
+            print(f"\n⚠️  Bulk ingestion completed with {results.get('total_errors', 0)} errors")
+        
+        print("="*60)
 
 
 async def main():
@@ -204,7 +294,7 @@ async def main():
     parser = argparse.ArgumentParser(description="PTR Ingestion Worker")
     parser.add_argument(
         "--mode",
-        choices=["scheduled", "once", "health", "discovery"],
+        choices=["scheduled", "once", "health", "discovery", "download", "full", "bulk"],
         default="scheduled",
         help="Execution mode"
     )
@@ -248,6 +338,12 @@ async def main():
             sys.exit(exit_code)
         elif args.mode == "discovery":
             await worker.run_discovery_mode(limit=args.limit)
+        elif args.mode == "download":
+            await worker.run_download_mode(limit=args.limit)
+        elif args.mode == "bulk":
+            await worker.run_bulk_mode(limit=args.limit)
+        elif args.mode == "full":
+            await worker.run_once_mode(limit=args.limit)
         
         logger.info("PTR ingestion worker completed successfully")
         
