@@ -13,7 +13,7 @@ interface Trade {
   asset_type: string
   transaction_type: string
   amount_range: string
-  congress_members: {
+  politicians: {
     id: string
     full_name: string
     party: string
@@ -67,19 +67,19 @@ const TradeCard = ({ trade }: TradeCardProps) => {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Avatar className="h-10 w-10">
-              <AvatarImage src={trade.congress_members.photo_url} alt={trade.congress_members.full_name} />
+              <AvatarImage src={trade.politicians.photo_url} alt={trade.politicians.full_name} />
               <AvatarFallback>
                 <User className="h-5 w-5" />
               </AvatarFallback>
             </Avatar>
             <div>
-              <CardTitle className="text-base">{trade.congress_members.full_name}</CardTitle>
+              <CardTitle className="text-base">{trade.politicians.full_name}</CardTitle>
               <div className="flex items-center gap-2 mt-1">
-                <Badge className={getPartyColor(trade.congress_members.party)}>
-                  {trade.congress_members.party}
+                <Badge className={getPartyColor(trade.politicians.party)}>
+                  {trade.politicians.party}
                 </Badge>
                 <span className="text-xs text-muted-foreground">
-                  {trade.congress_members.state} • {trade.congress_members.chamber}
+                  {trade.politicians.state} • {trade.politicians.chamber}
                 </span>
               </div>
             </div>

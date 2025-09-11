@@ -10,24 +10,27 @@ from decimal import Decimal
 
 @dataclass
 class CongressMember:
-    """Model for congress_members table."""
+    """Model for politicians table (legacy name for compatibility)."""
     id: Optional[str] = None  # UUID
     full_name: str = ""
     chamber: str = "house"
     state: Optional[str] = None
-    party: Optional[str] = None
-    external_ids: Optional[Dict[str, Any]] = None
+    district: Optional[str] = None
+    doc_id: Optional[str] = None
+    filing_date: Optional[datetime] = None
     created_at: Optional[datetime] = None
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for database insertion."""
+        created_at = self.created_at or datetime.utcnow()
         return {
             "full_name": self.full_name,
             "chamber": self.chamber,
             "state": self.state,
-            "party": self.party,
-            "external_ids": self.external_ids or {},
-            "created_at": self.created_at or datetime.utcnow()
+            "district": self.district,
+            "doc_id": self.doc_id,
+            "filing_date": self.filing_date.isoformat() if self.filing_date else None,
+            "created_at": created_at.isoformat() if isinstance(created_at, datetime) else created_at
         }
 
 
@@ -35,7 +38,7 @@ class CongressMember:
 class Trade:
     """Model for trades table - Updated to match existing schema."""
     id: Optional[str] = None  # UUID
-    member_id: str = ""  # UUID reference to congress_members
+    member_id: str = ""  # UUID reference to politicians
     transaction_date: Optional[date] = None
     disclosure_date: Optional[date] = None
     ticker: Optional[str] = None
@@ -59,10 +62,12 @@ class Trade:
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for database insertion."""
+        created_at = self.created_at or datetime.utcnow()
+        updated_at = self.updated_at or datetime.utcnow()
         return {
             "member_id": self.member_id,
-            "transaction_date": self.transaction_date,
-            "disclosure_date": self.disclosure_date,
+            "transaction_date": self.transaction_date.isoformat() if self.transaction_date else None,
+            "disclosure_date": self.disclosure_date.isoformat() if self.disclosure_date else None,
             "ticker": self.ticker,
             "asset_description": self.asset_description,
             "asset_type": self.asset_type,
@@ -70,8 +75,8 @@ class Trade:
             "amount_range": self.amount_range,
             "amount_min": self.amount_min,
             "amount_max": self.amount_max,
-            "created_at": self.created_at or datetime.utcnow(),
-            "updated_at": self.updated_at or datetime.utcnow()
+            "created_at": created_at.isoformat() if isinstance(created_at, datetime) else created_at,
+            "updated_at": updated_at.isoformat() if isinstance(updated_at, datetime) else updated_at
         }
 
 
@@ -133,25 +138,28 @@ class Politician:
     full_name: str = ""
     chamber: str = "house"
     state: Optional[str] = None
-    party: Optional[str] = None
-    external_ids: Optional[Dict[str, Any]] = None
+    district: Optional[str] = None
+    doc_id: Optional[str] = None
+    filing_date: Optional[datetime] = None
     created_at: Optional[datetime] = None
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for database insertion."""
+        created_at = self.created_at or datetime.utcnow()
         return {
             "full_name": self.full_name,
             "chamber": self.chamber,
             "state": self.state,
-            "party": self.party,
-            "external_ids": self.external_ids or {},
-            "created_at": self.created_at or datetime.utcnow()
+            "district": self.district,
+            "doc_id": self.doc_id,
+            "filing_date": self.filing_date.isoformat() if self.filing_date else None,
+            "created_at": created_at.isoformat() if isinstance(created_at, datetime) else created_at
         }
 
 
 @dataclass
 class Disclosure:
-    """Model for tracking disclosure metadata - stored in congress_members or separate tracking."""
+    """Model for tracking disclosure metadata - stored in politicians or separate tracking."""
     id: Optional[str] = None
     member_id: str = ""
     source: str = "house_clerk"
@@ -164,13 +172,14 @@ class Disclosure:
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for database insertion."""
+        created_at = self.created_at or datetime.utcnow()
         return {
             "member_id": self.member_id,
             "source": self.source,
             "report_id": self.report_id,
-            "filed_date": self.filed_date,
-            "published_at": self.published_at,
+            "filed_date": self.filed_date.isoformat() if self.filed_date else None,
+            "published_at": self.published_at.isoformat() if self.published_at else None,
             "doc_url": self.doc_url,
             "raw": self.raw or {},
-            "created_at": self.created_at or datetime.utcnow()
+            "created_at": created_at.isoformat() if isinstance(created_at, datetime) else created_at
         }

@@ -183,6 +183,9 @@ class TXTParser:
             filing_date = row.get('FilingDate', '').strip()
             doc_id = row.get('DocID', '').strip()
             
+            # Parse state and district from StateDst field
+            state, district = self._parse_state_district(state_district)
+            
             # Validate required fields
             if not last_name or not first_name or not doc_id:
                 logger.warning(
@@ -226,7 +229,9 @@ class TXTParser:
                 'suffix': suffix or None,
                 'filing_type': filing_type,
                 'filing_type_description': filing_type_description,
-                'state_district': state_district or None,
+                'state': state,
+                'district': district,
+                'state_district': state_district or None,  # Keep original for reference
                 'filing_year': int(filing_year) if filing_year.isdigit() else year,
                 'filing_date': parsed_date,
                 'raw_filing_date': filing_date,
@@ -245,6 +250,52 @@ class TXTParser:
                 row_data=row
             )
             raise
+    
+    def _parse_state_district(self, state_district: str) -> Tuple[Optional[str], Optional[str]]:
+        """
+        Parse StateDst field to extract state and district.
+        
+        Format examples: SC02, IL09, CA53, TX31
+        - First 2 characters: State abbreviation
+        - Remaining characters: District number (may have leading zeros)
+        
+        Args:
+            state_district: StateDst field value (e.g., "SC02", "IL09")
+            
+        Returns:
+            Tuple of (state, district) where district is cleaned of leading zeros
+        """
+        if not state_district or len(state_district) < 2:
+            return None, None
+        
+        try:
+            # Extract state (first 2 characters)
+            state = state_district[:2].upper()
+            
+            # Extract district (remaining characters)
+            district_str = state_district[2:].strip()
+            
+            if not district_str:
+                # Some entries might be state-only (senators, at-large districts)
+                return state, None
+            
+            # Convert district to integer to remove leading zeros, then back to string
+            try:
+                district_num = int(district_str)
+                district = str(district_num)
+            except ValueError:
+                # If district contains non-numeric characters, keep as-is
+                district = district_str
+            
+            return state, district
+            
+        except Exception as e:
+            logger.warning(
+                "Failed to parse state/district",
+                state_district=state_district,
+                error=str(e)
+            )
+            return None, None
     
     def _clean_text(self, text: str) -> str:
         """Clean and normalize text content."""

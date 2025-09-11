@@ -36,7 +36,7 @@ const Index = () => {
     try {
       // Fetch congress members
       const { data: membersData } = await supabase
-        .from('congress_members')
+        .from('politicians')
         .select('*')
         .order('last_name')
 
@@ -45,7 +45,7 @@ const Index = () => {
         .from('trades')
         .select(`
           *,
-          congress_members (
+          politicians (
             id,
             full_name,
             party,

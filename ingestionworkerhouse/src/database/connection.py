@@ -187,26 +187,22 @@ class DisclosureRepository:
         self.congress_member_repo = CongressMemberRepository(db)
     
     async def find_by_report_id(self, source: str, report_id: str) -> Optional[Dict[str, Any]]:
-        """Find disclosure by source and report_id in politicians external_ids."""
+        """Find disclosure by source and report_id using doc_id field."""
         try:
             client = self.db.get_supabase_client()
             
-            # Search for politician with this report_id in external_ids
-            result = client.table("politicians").select("*").execute()
+            # Search for politician with this doc_id
+            result = client.table("politicians").select("*").eq("doc_id", report_id).execute()
             
-            for member in result.data or []:
-                external_ids = member.get("external_ids", {})
-                processed_reports = external_ids.get("processed_reports", [])
-                
-                for report in processed_reports:
-                    if report.get("source") == source and report.get("report_id") == report_id:
-                        return {
-                            "id": f"{member['id']}_{report_id}",
-                            "member_id": member["id"],
-                            "source": source,
-                            "report_id": report_id,
-                            **report
-                        }
+            if result.data:
+                member = result.data[0]
+                return {
+                    "id": f"{member['id']}_{report_id}",
+                    "member_id": member["id"],
+                    "source": source,
+                    "report_id": report_id,
+                    "doc_id": member.get("doc_id")
+                }
             
             return None
             
@@ -215,38 +211,14 @@ class DisclosureRepository:
             raise
     
     async def create(self, disclosure_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Create new disclosure record by updating politician external_ids."""
+        """Create new disclosure record by updating politician doc_id."""
         try:
             member_id = disclosure_data["member_id"]
             client = self.db.get_supabase_client()
             
-            # Get current member data
-            member_result = client.table("politicians").select("*").eq("id", member_id).execute()
-            
-            if not member_result.data:
-                raise Exception(f"Politician not found: {member_id}")
-            
-            member = member_result.data[0]
-            external_ids = member.get("external_ids", {})
-            processed_reports = external_ids.get("processed_reports", [])
-            
-            # Add new report
-            new_report = {
-                "source": disclosure_data["source"],
-                "report_id": disclosure_data["report_id"],
-                "filed_date": disclosure_data.get("filed_date").isoformat() if disclosure_data.get("filed_date") else None,
-                "published_at": disclosure_data.get("published_at").isoformat() if disclosure_data.get("published_at") else None,
-                "doc_url": disclosure_data.get("doc_url", ""),
-                "raw": disclosure_data.get("raw", {}),
-                "created_at": disclosure_data.get("created_at").isoformat() if disclosure_data.get("created_at") else None
-            }
-            
-            processed_reports.append(new_report)
-            external_ids["processed_reports"] = processed_reports
-            
-            # Update member
+            # Update member with doc_id
             update_result = client.table("politicians").update({
-                "external_ids": external_ids
+                "doc_id": disclosure_data["report_id"]
             }).eq("id", member_id).execute()
             
             if update_result.data:

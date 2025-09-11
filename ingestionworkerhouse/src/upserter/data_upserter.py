@@ -27,7 +27,7 @@ class DataUpserter:
     async def __aenter__(self):
         """Async context manager entry."""
         self.db_connection = DatabaseConnection()
-        await self.db_connection.connect()
+        self.db_connection.connect()  # Not async
         
         self.member_repo = CongressMemberRepository(self.db_connection)
         self.trade_repo = TradeRepository(self.db_connection)
@@ -37,7 +37,7 @@ class DataUpserter:
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Async context manager exit."""
         if self.db_connection:
-            await self.db_connection.close()
+            self.db_connection.close()  # Not async
     
     async def upsert_filing_data(
         self,
@@ -202,8 +202,8 @@ class DataUpserter:
                     results['errors'] += 1
                     continue
                 
-                # Upsert congress member
-                member = await self._upsert_congress_member(member_name)
+                # Upsert congress member with new fields
+                member = await self._upsert_congress_member_with_filing_data(member_name, filing_data)
                 if not member:
                     logger.warning("Failed to upsert member", member_name=member_name)
                     results['errors'] += 1
@@ -256,30 +256,52 @@ class DataUpserter:
         
         async def _perform_upsert():
             # Try to find existing member by name
-            existing_member = await self.member_repo.find_by_name(member_name)
+            existing_member_dict = await self.member_repo.find_by_name(member_name)
             
-            if existing_member:
+            if existing_member_dict:
+                # Convert dict to CongressMember object
+                existing_member = CongressMember(
+                    id=existing_member_dict.get('id'),
+                    full_name=existing_member_dict.get('full_name'),
+                    chamber=existing_member_dict.get('chamber'),
+                    state=existing_member_dict.get('state'),
+                    district=existing_member_dict.get('district'),
+                    doc_id=existing_member_dict.get('doc_id'),
+                    filing_date=existing_member_dict.get('filing_date'),
+                    created_at=existing_member_dict.get('created_at')
+                )
                 logger.debug("Found existing congress member", member_id=existing_member.id, name=member_name)
                 return existing_member
             
             # Create new member
             new_member = CongressMember(
                 full_name=member_name,
-                chamber='House',  # PTR filings are House-specific
+                chamber='house',  # PTR filings are House-specific
                 state=None,  # Will be updated when we have more data
-                party=None,  # Will be updated when we have more data
-                bioguide_id=None,
-                thomas_id=None,
-                govtrack_id=None
+                district=None,  # Will be updated when we have more data
+                doc_id=None,  # Will be updated when we have more data
+                filing_date=None  # Will be updated when we have more data
             )
             
-            created_member = await self.member_repo.create(new_member)
+            created_member_dict = await self.member_repo.create(new_member.to_dict())
             
-            if created_member:
+            if created_member_dict:
+                # Convert dict back to CongressMember object
+                created_member = CongressMember(
+                    id=created_member_dict.get('id'),
+                    full_name=created_member_dict.get('full_name'),
+                    chamber=created_member_dict.get('chamber'),
+                    state=created_member_dict.get('state'),
+                    district=created_member_dict.get('district'),
+                    doc_id=created_member_dict.get('doc_id'),
+                    filing_date=created_member_dict.get('filing_date'),
+                    created_at=created_member_dict.get('created_at')
+                )
                 logger.info("Created new congress member", member_id=created_member.id, name=member_name)
                 metrics.increment("data_upsert.members_created")
+                return created_member
             
-            return created_member
+            return None
         
         try:
             return await retry_with_backoff(
@@ -290,6 +312,117 @@ class DataUpserter:
             )
         except Exception as e:
             logger.error("Failed to upsert congress member", name=member_name, error=str(e))
+            return None
+    
+    async def _upsert_congress_member_with_filing_data(
+        self, 
+        member_name: str, 
+        filing_data: Dict[str, Any]
+    ) -> Optional[CongressMember]:
+        """Upsert congress member with additional filing data fields."""
+        
+        async def _perform_upsert():
+            # Try to find existing member by name
+            existing_member_dict = await self.member_repo.find_by_name(member_name)
+            
+            if existing_member_dict:
+                # Check if we need to update with new filing data
+                needs_update = False
+                update_fields = {}
+                
+                # Check if we have new state/district info
+                if filing_data.get('state') and not existing_member_dict.get('state'):
+                    update_fields['state'] = filing_data.get('state')
+                    needs_update = True
+                
+                if filing_data.get('district') and not existing_member_dict.get('district'):
+                    update_fields['district'] = filing_data.get('district')
+                    needs_update = True
+                
+                # Always update doc_id and filing_date with latest filing info
+                if filing_data.get('doc_id'):
+                    update_fields['doc_id'] = filing_data.get('doc_id')
+                    needs_update = True
+                
+                if filing_data.get('filing_date'):
+                    update_fields['filing_date'] = filing_data.get('filing_date').isoformat() if hasattr(filing_data.get('filing_date'), 'isoformat') else filing_data.get('filing_date')
+                    needs_update = True
+                
+                if needs_update:
+                    # Update the existing member
+                    client = self.db_connection.get_supabase_client()
+                    update_result = client.table("politicians").update(update_fields).eq("id", existing_member_dict['id']).execute()
+                    
+                    if update_result.data:
+                        # Merge updated fields with existing data
+                        updated_member_dict = {**existing_member_dict, **update_fields}
+                        logger.debug("Updated congress member with filing data", 
+                                   member_id=existing_member_dict['id'], 
+                                   updated_fields=list(update_fields.keys()))
+                    else:
+                        updated_member_dict = existing_member_dict
+                else:
+                    updated_member_dict = existing_member_dict
+                
+                # Convert dict to CongressMember object
+                existing_member = CongressMember(
+                    id=updated_member_dict.get('id'),
+                    full_name=updated_member_dict.get('full_name'),
+                    chamber=updated_member_dict.get('chamber'),
+                    state=updated_member_dict.get('state'),
+                    district=updated_member_dict.get('district'),
+                    doc_id=updated_member_dict.get('doc_id'),
+                    filing_date=updated_member_dict.get('filing_date'),
+                    created_at=updated_member_dict.get('created_at')
+                )
+                return existing_member
+            
+            # Create new member with filing data
+            new_member = CongressMember(
+                full_name=member_name,
+                chamber='house',  # PTR filings are House-specific
+                state=filing_data.get('state'),
+                district=filing_data.get('district'),
+                doc_id=filing_data.get('doc_id'),
+                filing_date=filing_data.get('filing_date')
+            )
+            
+            created_member_dict = await self.member_repo.create(new_member.to_dict())
+            
+            if created_member_dict:
+                # Convert dict back to CongressMember object
+                created_member = CongressMember(
+                    id=created_member_dict.get('id'),
+                    full_name=created_member_dict.get('full_name'),
+                    chamber=created_member_dict.get('chamber'),
+                    state=created_member_dict.get('state'),
+                    district=created_member_dict.get('district'),
+                    doc_id=created_member_dict.get('doc_id'),
+                    filing_date=created_member_dict.get('filing_date'),
+                    created_at=created_member_dict.get('created_at')
+                )
+                logger.info("Created new congress member with filing data", 
+                          member_id=created_member.id, 
+                          name=member_name,
+                          state=filing_data.get('state'),
+                          district=filing_data.get('district'))
+                metrics.increment("data_upsert.members_created")
+                return created_member
+            
+            return None
+        
+        try:
+            return await retry_with_backoff(
+                _perform_upsert,
+                max_attempts=self.settings.max_retries,
+                base_delay=1.0,
+                max_delay=10.0
+            )
+        except Exception as e:
+            logger.error("Failed to upsert congress member with filing data", 
+                        name=member_name, 
+                        filing_data=filing_data,
+                        error=str(e))
             return None
     
     async def _upsert_trades_batch(

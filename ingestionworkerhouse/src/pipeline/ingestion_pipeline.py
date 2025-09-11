@@ -743,6 +743,8 @@ class IngestionPipeline:
                                 'suffix': filing_data.get('suffix'),
                                 'filing_type': filing_data.get('filing_type'),
                                 'filing_type_description': filing_data.get('filing_type_description'),
+                                'state': filing_data.get('state'),
+                                'district': filing_data.get('district'),
                                 'state_district': filing_data.get('state_district'),
                                 'filing_year': filing_data.get('filing_year'),
                                 'filing_date': filing_data.get('filing_date'),

@@ -49,44 +49,38 @@ export type Database = {
           },
         ]
       }
-      congress_members: {
+      politicians: {
         Row: {
-          bioguide_id: string | null
           chamber: string
           created_at: string
-          first_name: string
+          district: string | null
+          doc_id: string | null
+          filing_date: string | null
           full_name: string
           id: string
-          last_name: string
-          party: string
-          photo_url: string | null
-          state: string
+          state: string | null
           updated_at: string
         }
         Insert: {
-          bioguide_id?: string | null
           chamber: string
           created_at?: string
-          first_name: string
+          district?: string | null
+          doc_id?: string | null
+          filing_date?: string | null
           full_name: string
           id?: string
-          last_name: string
-          party: string
-          photo_url?: string | null
-          state: string
+          state?: string | null
           updated_at?: string
         }
         Update: {
-          bioguide_id?: string | null
           chamber?: string
           created_at?: string
-          first_name?: string
+          district?: string | null
+          doc_id?: string | null
+          filing_date?: string | null
           full_name?: string
           id?: string
-          last_name?: string
-          party?: string
-          photo_url?: string | null
-          state?: string
+          state?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -175,7 +169,7 @@ export type Database = {
             foreignKeyName: "trades_member_id_fkey"
             columns: ["member_id"]
             isOneToOne: false
-            referencedRelation: "congress_members"
+            referencedRelation: "politicians"
             referencedColumns: ["id"]
           },
         ]
@@ -204,7 +198,7 @@ export type Database = {
             foreignKeyName: "user_follows_member_id_fkey"
             columns: ["member_id"]
             isOneToOne: false
-            referencedRelation: "congress_members"
+            referencedRelation: "politicians"
             referencedColumns: ["id"]
           },
         ]
