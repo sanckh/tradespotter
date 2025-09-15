@@ -11,6 +11,7 @@ import CongressMemberCard from '@/components/CongressMemberCard'
 import TradeCard from '@/components/TradeCard'
 import { useToast } from '@/hooks/use-toast'
 import { Search, TrendingUp, Users, Bell, LogOut } from 'lucide-react'
+import Footer from "@/components/Footer";
 
 const Index = () => {
   const { user, signOut, loading: authLoading } = useAuth()
@@ -175,6 +176,7 @@ const Index = () => {
             </div>
           </div>
         </div>
+        <Footer />
       </div>
     )
   }
@@ -319,15 +321,7 @@ const Index = () => {
           </TabsContent>
         </Tabs>
       </div>
-      <footer>
-          <div className="container mx-auto px-5 py-5">
-          <div className="flex items-center">
-              <span className="text-sm text-muted-foreground disclaimerInfo" style={{ marginLeft: "20px", marginRight: "20px"}}>
-                The information provided on this site is for informational purposes only and does not constitute investment advice, financial advice, trading advice, or any other form of advice. We make no guarantees regarding the accuracy, timeliness, or completeness of the information. You are solely responsible for any investment decisions you make, and you agree that this site and its operators are not liable for any losses or damages that may arise from your use of the information provided.
-              </span>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   )
 };
