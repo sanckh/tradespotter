@@ -50,15 +50,19 @@ class PTRIngestionWorker:
         finally:
             await self._cleanup()
     
-    async def run_once_mode(self, limit: Optional[int] = None):
+    async def run_once_mode(self, limit: Optional[int] = None, year_start: Optional[int] = None, year_end: Optional[int] = None):
         """Run pipeline once and exit."""
-        logger.info("Starting PTR ingestion worker in once mode", limit=limit)
+        logger.info("Starting PTR ingestion worker in once mode", limit=limit, year_start=year_start, year_end=year_end)
         
         try:
             self.pipeline = IngestionPipeline(self.settings)
             
             # Run full pipeline
-            results = await self.pipeline.run_full_pipeline(limit=limit)
+            results = await self.pipeline.run_full_pipeline(
+                year_start=year_start,
+                year_end=year_end,
+                limit=limit
+            )
             
             logger.info("Once mode completed successfully", **results)
             
@@ -96,15 +100,19 @@ class PTRIngestionWorker:
             logger.error("Health check failed", error=str(e))
             return 2
     
-    async def run_discovery_mode(self, limit: Optional[int] = None):
+    async def run_discovery_mode(self, limit: Optional[int] = None, year_start: Optional[int] = None, year_end: Optional[int] = None):
         """Run discovery only and exit."""
-        logger.info("Starting PTR ingestion worker in discovery mode", limit=limit)
+        logger.info("Starting PTR ingestion worker in discovery mode", limit=limit, year_start=year_start, year_end=year_end)
         
         try:
             self.pipeline = IngestionPipeline(self.settings)
             
             # Run discovery only
-            filings = await self.pipeline.run_discovery_only(limit=limit)
+            filings = await self.pipeline.run_discovery_only(
+                year_start=year_start,
+                year_end=year_end,
+                limit=limit
+            )
             
             logger.info("Discovery mode completed", filings_found=len(filings))
             
@@ -117,15 +125,19 @@ class PTRIngestionWorker:
             logger.error("Discovery mode failed", error=str(e))
             raise
     
-    async def run_download_mode(self, limit: Optional[int] = None):
+    async def run_download_mode(self, limit: Optional[int] = None, year_start: Optional[int] = None, year_end: Optional[int] = None):
         """Run discovery and download only, then exit."""
-        logger.info("Starting PTR ingestion worker in download mode", limit=limit)
+        logger.info("Starting PTR ingestion worker in download mode", limit=limit, year_start=year_start, year_end=year_end)
         
         try:
             self.pipeline = IngestionPipeline(self.settings)
             
             # Run discovery and download only
-            results = await self.pipeline.run_download_only(limit=limit)
+            results = await self.pipeline.run_download_only(
+                year_start=year_start,
+                year_end=year_end,
+                limit=limit
+            )
             
             logger.info("Download mode completed", **results)
             
@@ -138,15 +150,19 @@ class PTRIngestionWorker:
             logger.error("Download mode failed", error=str(e))
             raise
 
-    async def run_bulk_mode(self, limit: Optional[int] = None):
+    async def run_bulk_mode(self, limit: Optional[int] = None, year_start: Optional[int] = None, year_end: Optional[int] = None):
         """Run complete bulk ingestion pipeline (discovery -> download -> parse -> normalize -> upsert)."""
-        logger.info("Starting PTR ingestion worker in bulk mode", limit=limit)
+        logger.info("Starting PTR ingestion worker in bulk mode", limit=limit, year_start=year_start, year_end=year_end)
         
         try:
             self.pipeline = IngestionPipeline(self.settings)
             
             # Run full bulk pipeline
-            results = await self.pipeline.run_bulk_pipeline(limit=limit)
+            results = await self.pipeline.run_bulk_pipeline(
+                year_start=year_start,
+                year_end=year_end,
+                limit=limit
+            )
             
             logger.info("Bulk mode completed", **results)
             
@@ -304,6 +320,21 @@ async def main():
         help="Limit number of filings to process (for once/discovery modes)"
     )
     parser.add_argument(
+        "--year",
+        type=int,
+        help="Specific year to process (e.g., 2023)"
+    )
+    parser.add_argument(
+        "--year-start",
+        type=int,
+        help="Start year for processing range"
+    )
+    parser.add_argument(
+        "--year-end",
+        type=int,
+        help="End year for processing range"
+    )
+    parser.add_argument(
         "--log-level",
         choices=["DEBUG", "INFO", "WARNING", "ERROR"],
         default="INFO",
@@ -328,22 +359,31 @@ async def main():
         # Create worker
         worker = PTRIngestionWorker(settings)
         
+        # Parse year arguments
+        year_start = args.year_start
+        year_end = args.year_end
+        
+        # If --year is specified, use it for both start and end
+        if args.year:
+            year_start = args.year
+            year_end = args.year
+        
         # Run in specified mode
         if args.mode == "scheduled":
             await worker.run_scheduled_mode()
         elif args.mode == "once":
-            await worker.run_once_mode(limit=args.limit)
+            await worker.run_once_mode(limit=args.limit, year_start=year_start, year_end=year_end)
         elif args.mode == "health":
             exit_code = await worker.run_health_check_mode()
             sys.exit(exit_code)
         elif args.mode == "discovery":
-            await worker.run_discovery_mode(limit=args.limit)
+            await worker.run_discovery_mode(limit=args.limit, year_start=year_start, year_end=year_end)
         elif args.mode == "download":
-            await worker.run_download_mode(limit=args.limit)
+            await worker.run_download_mode(limit=args.limit, year_start=year_start, year_end=year_end)
         elif args.mode == "bulk":
-            await worker.run_bulk_mode(limit=args.limit)
+            await worker.run_bulk_mode(limit=args.limit, year_start=year_start, year_end=year_end)
         elif args.mode == "full":
-            await worker.run_once_mode(limit=args.limit)
+            await worker.run_once_mode(limit=args.limit, year_start=year_start, year_end=year_end)
         
         logger.info("PTR ingestion worker completed successfully")
         
