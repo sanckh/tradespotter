@@ -1,0 +1,16 @@
+# Core packages - let pip resolve compatible versions
+supabase
+aiohttp
+aiofiles
+pdfplumber
+pandas
+beautifulsoup4
+lxml
+requests
+structlog
+tenacity
+python-dotenv
+pydantic
+pydantic-settings
+click
+rich
