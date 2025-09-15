@@ -844,7 +844,7 @@ class IngestionPipeline:
             
             logger.info(
                 "Bulk upsert stage completed",
-                filings_processed=len(upsert_results),
+                filings_processed=len(upsert_results), 
                 total_filings_upserted=self.stats['trades_upserted']
             )
             
