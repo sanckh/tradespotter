@@ -13,15 +13,75 @@ const Footer = () => {
   const [submitting, setSubmitting] = useState(false);
 
   return (
-          <footer>
-          <div className="container mx-auto px-5 py-5">
-          <div className="flex items-center">
-              <span className="text-sm text-muted-foreground disclaimerInfo" style={{ marginLeft: "20px", marginRight: "20px"}}>
-                The information provided on this site is for informational purposes only and does not constitute investment advice, financial advice, trading advice, or any other form of advice. We make no guarantees regarding the accuracy, timeliness, or completeness of the information. You are solely responsible for any investment decisions you make, and you agree that this site and its operators are not liable for any losses or damages that may arise from your use of the information provided.
-              </span>
+    <footer className="bg-gradient-to-br from-blue-900 to-blue-800 text-white mt-auto">
+      <div className="container mx-auto px-4 py-6 sm:py-8">
+        {/* Main Footer Content */}
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6 mb-6">
+
+          {/* Legal Section */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-amber-400">Legal</h3>
+            <ul className="space-y-2">
+              <li>
+                <Link 
+                  to="/terms-of-service" 
+                  className="text-blue-100 hover:text-white transition-colors text-sm"
+                >
+                  Terms of Service
+                </Link>
+              </li>
+              <li>
+                <Link 
+                  to="/privacy-policy" 
+                  className="text-blue-100 hover:text-white transition-colors text-sm"
+                >
+                  Privacy Policy
+                </Link>
+              </li>
+              <li>
+                <Link 
+                  to="/refund-policy" 
+                  className="text-blue-100 hover:text-white transition-colors text-sm"
+                >
+                  Refund Policy
+                </Link>
+              </li>
+            </ul>
+          </div>
+
+          {/* Support Section */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-amber-400">Support</h3>
+            <ul className="space-y-2">
+              <li>
+                <a 
+                  href="mailto:corey.sutton7@gmail.com"
+                  className="text-blue-100 hover:text-white transition-colors text-sm flex items-center gap-1"
+                >
+                  <Mail className="h-3 w-3" />
+                  Email Support
+                </a>
+              </li>
+            </ul>
+          </div>
+        
+        {/* Bottom Section */}
+        <div className="border-t border-blue-700 pt-4">
+          <div className="flex flex-col items-center justify-center gap-4">
+            <div className="flex items-center gap-2">
+              <BookOpen className="h-4 w-4 text-amber-400" />
+              <p className="text-blue-200 text-sm">
+                © 2025 TradeSpotter. All rights reserved.
+              </p>
+            </div>
+            <p className="text-blue-300 text-xs">
+              VERSION PLACEHOLDER
+            </p>
           </div>
         </div>
-      </footer>
+      </div>
+      </div>
+    </footer>
   );
 };
 
