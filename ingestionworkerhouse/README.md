@@ -311,6 +311,39 @@ python -m src.main --mode discovery [--limit N]
 python -m src.main --mode once --log-level DEBUG
 ```
 
+### Year-by-Year Processing
+
+The ingestion worker now supports processing data one year at a time for more granular control:
+
+```bash
+# Process only 2023 data
+python -m src.main --mode once --year 2023
+
+# Process only 2024 data
+python -m src.main --mode bulk --year 2024
+
+# Process a specific year range
+python -m src.main --mode once --year-start 2023 --year-end 2024
+
+# Discover filings for a specific year
+python -m src.main --mode discovery --year 2023 --limit 10
+
+# Download files for 2023 only
+python -m src.main --mode download --year 2023 --limit 5
+```
+
+**Year Processing Options:**
+- `--year YYYY`: Process a specific year (sets both start and end to the same year)
+- `--year-start YYYY`: Start year for range processing
+- `--year-end YYYY`: End year for range processing
+
+**Benefits of Year-by-Year Processing:**
+- Reduced memory usage for large datasets
+- Better error isolation (failures in one year don't affect others)
+- Easier debugging and monitoring
+- Incremental processing for historical data backfills
+- More predictable resource consumption
+
 ### Docker Usage
 
 ```bash
