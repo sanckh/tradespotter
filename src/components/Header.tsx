@@ -3,6 +3,7 @@ import { useToast } from '@/hooks/use-toast'
 import { Search, TrendingUp, Users, Bell, LogOut } from 'lucide-react'
 import { Button } from '@/components/ui/button';
 import { useNavigate } from "react-router-dom";
+import UserMenu from './UserMenu';
 
 interface HeaderProps {
   /** The main title of the page */
@@ -70,10 +71,7 @@ const Header = ({
                 <span className="text-sm text-muted-foreground">
                     Welcome back, {user.email}
                 </span>
-                <Button variant="ghost" size="sm" onClick={handleSignOut}>
-                    <LogOut className="h-4 w-4 mr-2" />
-                    Sign Out
-                </Button>
+                <UserMenu />
                 </div>
             </div>
             </div>
