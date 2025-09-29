@@ -11,6 +11,8 @@ import CongressMemberCard from '@/components/CongressMemberCard'
 import TradeCard from '@/components/TradeCard'
 import { useToast } from '@/hooks/use-toast'
 import { Search, TrendingUp, Users, Bell, LogOut } from 'lucide-react'
+import Footer from "@/components/Footer";
+import Header from "@/components/Header";
 
 const Index = () => {
   const { user, signOut, loading: authLoading } = useAuth()
@@ -175,32 +177,17 @@ const Index = () => {
             </div>
           </div>
         </div>
+        <Footer />
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-muted/30">
-      {/* Header */}
-      <header className="border-b bg-background">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <TrendingUp className="h-6 w-6 text-primary" />
-              <h1 className="text-xl font-bold">Trade Spotter</h1>
-            </div>
-            <div className="flex items-center gap-4">
-              <span className="text-sm text-muted-foreground">
-                Welcome back, {user.email}
-              </span>
-              <Button variant="ghost" size="sm" onClick={handleSignOut}>
-                <LogOut className="h-4 w-4 mr-2" />
-                Sign Out
-              </Button>
-            </div>
-          </div>
-        </div>
-      </header>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-amber-50 flex flex-col">
+    <Header 
+      title="TradeSpotter"
+      showClickableLogo={false}
+    />
 
       <div className="container mx-auto px-4 py-8">
         <Tabs defaultValue="dashboard" className="w-full">
@@ -319,15 +306,7 @@ const Index = () => {
           </TabsContent>
         </Tabs>
       </div>
-      <footer>
-          <div className="container mx-auto px-5 py-5">
-          <div className="flex items-center">
-              <span className="text-sm text-muted-foreground disclaimerInfo" style={{ marginLeft: "20px", marginRight: "20px"}}>
-                The information provided on this site is for informational purposes only and does not constitute investment advice, financial advice, trading advice, or any other form of advice. We make no guarantees regarding the accuracy, timeliness, or completeness of the information. You are solely responsible for any investment decisions you make, and you agree that this site and its operators are not liable for any losses or damages that may arise from your use of the information provided.
-              </span>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   )
 };
