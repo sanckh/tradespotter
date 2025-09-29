@@ -1,4 +1,4 @@
-"""Database connection utilities for Supabase/Postgres - Updated for existing schema."""
+"""Database connection utilities for Supabase/Postgres - Matches 007_create_fresh_schema.sql."""
 
 import asyncio
 from typing import List, Dict, Any, Optional
@@ -64,14 +64,14 @@ class DatabaseConnection:
         logger.info("Database connections closed")
 
 
-class CongressMemberRepository:
-    """Repository for politicians operations (legacy name for compatibility)."""
+class PoliticianRepository:
+    """Repository for politicians table operations."""
     
     def __init__(self, db: DatabaseConnection):
         self.db = db
     
     async def find_by_name(self, full_name: str) -> Optional[Dict[str, Any]]:
-        """Find congress member by full name."""
+        """Find politician by full name."""
         try:
             client = self.db.get_supabase_client()
             result = client.table("politicians").select("*").eq("full_name", full_name).execute()
@@ -84,60 +84,169 @@ class CongressMemberRepository:
             logger.error("Failed to find politician", name=full_name, error=str(e))
             raise
     
-    async def create(self, member_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Create new congress member record."""
+    async def find_by_name_state_district(self, full_name: str, state: str, district: Optional[str] = None) -> Optional[Dict[str, Any]]:
+        """Find politician by name, state, and district for more accurate matching."""
         try:
             client = self.db.get_supabase_client()
-            result = client.table("politicians").insert(member_data).execute()
+            query = client.table("politicians").select("*").eq("full_name", full_name).eq("state", state)
             
-            if result.data:
-                logger.info("Politician created", member_id=result.data[0]["id"])
-                return result.data[0]
+            if district:
+                query = query.eq("district", district)
             
-            raise Exception("Failed to create politician")
-            
-        except Exception as e:
-            logger.error("Failed to create politician", data=member_data, error=str(e))
-            raise
-
-
-class TradeRepository:
-    """Repository for trade operations - Updated for existing schema."""
-    
-    def __init__(self, db: DatabaseConnection):
-        self.db = db
-    
-    async def find_duplicate_trade(self, trade_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        """Find duplicate trade based on key fields."""
-        try:
-            client = self.db.get_supabase_client()
-            
-            # Check for duplicates using key fields
-            result = client.table("trades").select("*").match({
-                "member_id": trade_data["member_id"],
-                "transaction_date": trade_data["transaction_date"],
-                "ticker": trade_data.get("ticker"),
-                "asset_description": trade_data["asset_description"],
-                "transaction_type": trade_data["transaction_type"],
-                "amount_range": trade_data["amount_range"]
-            }).execute()
+            result = query.execute()
             
             if result.data:
                 return result.data[0]
             return None
             
         except Exception as e:
-            logger.error("Failed to check for duplicate trade", error=str(e))
+            logger.error("Failed to find politician", name=full_name, state=state, district=district, error=str(e))
+            raise
+    
+    async def upsert(self, politician_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Upsert politician record (insert or update if exists)."""
+        try:
+            client = self.db.get_supabase_client()
+            
+            # Try to find existing politician first
+            existing = await self.find_by_name_state_district(
+                politician_data["full_name"],
+                politician_data.get("state"),
+                politician_data.get("district")
+            )
+            
+            if existing:
+                # Update existing record if needed
+                logger.info("Politician already exists", politician_id=existing["id"])
+                return existing
+            
+            # Create new politician
+            result = client.table("politicians").insert(politician_data).execute()
+            
+            if result.data:
+                logger.info("Politician created", politician_id=result.data[0]["id"])
+                return result.data[0]
+            
+            raise Exception("Failed to upsert politician")
+            
+        except Exception as e:
+            logger.error("Failed to upsert politician", data=politician_data, error=str(e))
+            raise
+    
+    async def create(self, politician_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create new politician record."""
+        try:
+            client = self.db.get_supabase_client()
+            result = client.table("politicians").insert(politician_data).execute()
+            
+            if result.data:
+                logger.info("Politician created", politician_id=result.data[0]["id"])
+                return result.data[0]
+            
+            raise Exception("Failed to create politician")
+            
+        except Exception as e:
+            logger.error("Failed to create politician", data=politician_data, error=str(e))
+            raise
+
+
+class DisclosureRepository:
+    """Repository for disclosures table operations."""
+    
+    def __init__(self, db: DatabaseConnection):
+        self.db = db
+    
+    async def find_by_doc_id(self, politician_id: str, doc_id: str) -> Optional[Dict[str, Any]]:
+        """Find disclosure by politician_id and doc_id."""
+        try:
+            client = self.db.get_supabase_client()
+            result = client.table("disclosures").select("*").eq("politician_id", politician_id).eq("doc_id", doc_id).execute()
+            
+            if result.data:
+                return result.data[0]
+            return None
+            
+        except Exception as e:
+            logger.error("Failed to find disclosure", politician_id=politician_id, doc_id=doc_id, error=str(e))
+            raise
+    
+    async def upsert(self, disclosure_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Upsert disclosure record (insert or return existing)."""
+        try:
+            # Check if disclosure already exists
+            existing = await self.find_by_doc_id(
+                disclosure_data["politician_id"],
+                disclosure_data["doc_id"]
+            )
+            
+            if existing:
+                logger.info("Disclosure already exists", disclosure_id=existing["id"])
+                return existing
+            
+            # Create new disclosure
+            return await self.create(disclosure_data)
+            
+        except Exception as e:
+            logger.error("Failed to upsert disclosure", data=disclosure_data, error=str(e))
+            raise
+    
+    async def create(self, disclosure_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create new disclosure record."""
+        try:
+            client = self.db.get_supabase_client()
+            result = client.table("disclosures").insert(disclosure_data).execute()
+            
+            if result.data:
+                logger.info("Disclosure created", disclosure_id=result.data[0]["id"])
+                return result.data[0]
+            
+            raise Exception("Failed to create disclosure")
+            
+        except Exception as e:
+            logger.error("Failed to create disclosure", data=disclosure_data, error=str(e))
+            raise
+
+
+class TradeRepository:
+    """Repository for trades table operations."""
+    
+    def __init__(self, db: DatabaseConnection):
+        self.db = db
+    
+    async def find_by_row_hash(self, row_hash: str) -> Optional[Dict[str, Any]]:
+        """Find trade by row_hash for deduplication."""
+        try:
+            client = self.db.get_supabase_client()
+            result = client.table("trades").select("*").eq("row_hash", row_hash).execute()
+            
+            if result.data:
+                return result.data[0]
+            return None
+            
+        except Exception as e:
+            logger.error("Failed to find trade by hash", row_hash=row_hash, error=str(e))
             raise
     
     async def create_batch(self, trades_data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Create multiple trade records in batch."""
         try:
             client = self.db.get_supabase_client()
-            result = client.table("trades").insert(trades_data).execute()
+            
+            # Filter out trades that already exist (by row_hash)
+            new_trades = []
+            for trade in trades_data:
+                existing = await self.find_by_row_hash(trade["row_hash"])
+                if not existing:
+                    new_trades.append(trade)
+            
+            if not new_trades:
+                logger.info("All trades already exist, skipping insert")
+                return []
+            
+            result = client.table("trades").insert(new_trades).execute()
             
             if result.data:
-                logger.info("Trades created", count=len(result.data))
+                logger.info("Trades created", count=len(result.data), duplicates_skipped=len(trades_data) - len(new_trades))
                 return result.data
             
             raise Exception("Failed to create trades")
@@ -149,6 +258,12 @@ class TradeRepository:
     async def create(self, trade_data: Dict[str, Any]) -> Dict[str, Any]:
         """Create single trade record."""
         try:
+            # Check if trade already exists
+            existing = await self.find_by_row_hash(trade_data["row_hash"])
+            if existing:
+                logger.info("Trade already exists", trade_id=existing["id"])
+                return existing
+            
             client = self.db.get_supabase_client()
             result = client.table("trades").insert(trade_data).execute()
             
@@ -163,83 +278,8 @@ class TradeRepository:
             raise
 
 
-# Legacy repositories for compatibility
-class PoliticianRepository:
-    """Legacy repository - maps to CongressMemberRepository."""
-    
-    def __init__(self, db: DatabaseConnection):
-        self.congress_member_repo = CongressMemberRepository(db)
-    
-    async def find_by_name(self, full_name: str) -> Optional[Dict[str, Any]]:
-        """Find politician by full name."""
-        return await self.congress_member_repo.find_by_name(full_name)
-    
-    async def create(self, politician_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Create new politician record."""
-        return await self.congress_member_repo.create(politician_data)
-
-
-class DisclosureRepository:
-    """Repository for disclosure tracking - uses external_ids in politicians."""
-    
-    def __init__(self, db: DatabaseConnection):
-        self.db = db
-        self.congress_member_repo = CongressMemberRepository(db)
-    
-    async def find_by_report_id(self, source: str, report_id: str) -> Optional[Dict[str, Any]]:
-        """Find disclosure by source and report_id using doc_id field."""
-        try:
-            client = self.db.get_supabase_client()
-            
-            # Search for politician with this doc_id
-            result = client.table("politicians").select("*").eq("doc_id", report_id).execute()
-            
-            if result.data:
-                member = result.data[0]
-                return {
-                    "id": f"{member['id']}_{report_id}",
-                    "member_id": member["id"],
-                    "source": source,
-                    "report_id": report_id,
-                    "doc_id": member.get("doc_id")
-                }
-            
-            return None
-            
-        except Exception as e:
-            logger.error("Failed to find disclosure", source=source, report_id=report_id, error=str(e))
-            raise
-    
-    async def create(self, disclosure_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Create new disclosure record by updating politician doc_id."""
-        try:
-            member_id = disclosure_data["member_id"]
-            client = self.db.get_supabase_client()
-            
-            # Update member with doc_id
-            update_result = client.table("politicians").update({
-                "doc_id": disclosure_data["report_id"]
-            }).eq("id", member_id).execute()
-            
-            if update_result.data:
-                logger.info("Disclosure created", member_id=member_id, report_id=disclosure_data["report_id"])
-                return {
-                    "id": f"{member_id}_{disclosure_data['report_id']}",
-                    **disclosure_data
-                }
-            
-            raise Exception("Failed to create disclosure")
-            
-        except Exception as e:
-            logger.error("Failed to create disclosure", data=disclosure_data, error=str(e))
-            raise
-    
-    async def update_raw_data(self, disclosure_id: str, raw_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Update raw data for existing disclosure."""
-        # For amended filings, we would update the external_ids
-        logger.info("Disclosure raw data update requested", disclosure_id=disclosure_id)
-        # Implementation would update the specific report in external_ids
-        return {"id": disclosure_id, "raw": raw_data}
+# Legacy alias for compatibility
+CongressMemberRepository = PoliticianRepository
 
 
 # Global database instance
