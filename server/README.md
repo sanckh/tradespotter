@@ -178,13 +178,80 @@ GET /api/politicians/trades?limit=20
       "politicians": {
         "id": "uuid",
         "full_name": "John Doe",
-        "party": "Democrat",
         "state": "CA",
         "chamber": "House"
       },
       ...
     }
   ]
+}
+```
+
+### Users
+
+#### Get User Follows
+```http
+GET /api/users/:userId/follows
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": ["politician-uuid-1", "politician-uuid-2"]
+}
+```
+
+#### Follow Politician
+```http
+POST /api/users/:userId/follows
+```
+
+**Request Body:**
+```json
+{
+  "politicianId": "politician-uuid"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "follow-uuid",
+    "user_id": "user-uuid",
+    "politician_id": "politician-uuid",
+    "created_at": "2025-01-15T12:00:00Z"
+  }
+}
+```
+
+#### Unfollow Politician
+```http
+DELETE /api/users/:userId/follows/:politicianId
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Successfully unfollowed politician"
+}
+```
+
+#### Check Follow Status
+```http
+GET /api/users/:userId/follows/:politicianId
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "isFollowing": true
+  }
 }
 ```
 

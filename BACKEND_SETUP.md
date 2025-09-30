@@ -139,10 +139,11 @@ All endpoints return:
 ### ✅ Migrated to Backend
 - Get all politicians
 - Get recent trades
+- Get user follows
+- Follow/unfollow politicians
 
 ### 🔄 Still Using Direct Supabase (Frontend)
-- User authentication
-- User follows (will be migrated next)
+- User authentication (handled by Supabase Auth)
 
 ## Features
 

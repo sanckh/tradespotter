@@ -5,6 +5,7 @@ import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
 import politicianRoutes from './routes/politicianRoutes';
+import userRoutes from './routes/userRoutes';
 
 const app = express();
 const port = Number(process.env.PORT) || 4000;
@@ -68,6 +69,7 @@ app.get('/api/health', (_req: Request, res: Response) => {
 
 // API Routes
 app.use('/api/politicians', politicianRoutes);
+app.use('/api/users', userRoutes);
 
 // Root endpoint
 app.get('/', (req: Request, res: Response) => {

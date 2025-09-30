@@ -14,6 +14,7 @@ import { Search, TrendingUp, Users, Bell, LogOut } from 'lucide-react'
 import Footer from "@/components/Footer";
 import Header from "@/components/Header";
 import { getAllPoliticians, getRecentTrades } from '@/api/politicians';
+import { getUserFollows } from '@/api/users';
 
 const Index = () => {
   const { user, signOut, loading: authLoading } = useAuth()
@@ -43,14 +44,10 @@ const Index = () => {
       // Fetch recent trades from backend API
       const tradesData = await getRecentTrades(20)
 
-      // Fetch user follows (still using Supabase directly for now)
+      // Fetch user follows from backend API
       if (user) {
-        const { data: followsData } = await supabase
-          .from('user_follows')
-          .select('politician_id')
-          .eq('user_id', user.id)
-
-        setFollowedMembers(new Set(followsData?.map(f => f.politician_id) || []))
+        const followsData = await getUserFollows(user.id)
+        setFollowedMembers(new Set(followsData || []))
       }
 
       setMembers(membersData || [])

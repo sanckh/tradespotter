@@ -1,12 +1,12 @@
 import { useState } from 'react'
 import { useAuth } from '@/hooks/useAuth'
-import { supabase } from '@/integrations/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { useToast } from '@/hooks/use-toast'
 import { Heart, HeartOff, User } from 'lucide-react'
+import { followPolitician, unfollowPolitician } from '@/api/users'
 
 interface CongressMember {
   id: string
@@ -43,27 +43,14 @@ const CongressMemberCard = ({ member, isFollowing, onFollowChange }: CongressMem
     
     try {
       if (isFollowing) {
-        const { error } = await supabase
-          .from('user_follows')
-          .delete()
-          .eq('user_id', user.id)
-          .eq('politician_id', member.id)
-
-        if (error) throw error
+        await unfollowPolitician(user.id, member.id)
 
         toast({
           title: "Unfollowed",
           description: `You are no longer following ${member.full_name}`
         })
       } else {
-        const { error } = await supabase
-          .from('user_follows')
-          .insert([{
-            user_id: user.id,
-            politician_id: member.id
-          }])
-
-        if (error) throw error
+        await followPolitician(user.id, member.id)
 
         toast({
           title: "Following",
