@@ -14,7 +14,6 @@ interface CongressMember {
   last_name: string | null
   full_name: string
   state: string | null
-  party: string | null
   chamber: string | null
   photo_url?: string
 }
@@ -85,18 +84,6 @@ const CongressMemberCard = ({ member, isFollowing, onFollowChange }: CongressMem
     }
   }
 
-  const getPartyColor = (party: string | null) => {
-    if (!party) return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
-    
-    switch (party) {
-      case 'Republican':
-        return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-      case 'Democrat':
-        return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-      default:
-        return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
-    }
-  }
 
   return (
     <Card className="hover:shadow-lg transition-shadow">
@@ -113,11 +100,6 @@ const CongressMemberCard = ({ member, isFollowing, onFollowChange }: CongressMem
             {member.chamber && (
               <Badge variant="outline" className="text-xs">
                 {member.chamber}
-              </Badge>
-            )}
-            {member.party && (
-              <Badge className={getPartyColor(member.party)}>
-                {member.party}
               </Badge>
             )}
             {member.state && (

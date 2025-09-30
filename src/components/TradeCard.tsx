@@ -16,7 +16,6 @@ interface Trade {
   politicians: {
     id: string
     full_name: string
-    party: string
     state: string | null
     chamber: string | null
   }
@@ -54,16 +53,6 @@ const TradeCard = ({ trade }: TradeCardProps) => {
     return side.charAt(0).toUpperCase() + side.slice(1).toLowerCase()
   }
 
-  const getPartyColor = (party: string) => {
-    switch (party) {
-      case 'Republican':
-        return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-      case 'Democrat':
-        return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-      default:
-        return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
-    }
-  }
 
   return (
     <Card className="hover:shadow-md transition-shadow">
@@ -78,11 +67,6 @@ const TradeCard = ({ trade }: TradeCardProps) => {
             <div>
               <CardTitle className="text-base">{trade.politicians.full_name}</CardTitle>
               <div className="flex items-center gap-2 mt-1">
-                {trade.politicians.party && (
-                  <Badge className={getPartyColor(trade.politicians.party)}>
-                    {trade.politicians.party}
-                  </Badge>
-                )}
                 <span className="text-xs text-muted-foreground">
                   {trade.politicians.state && trade.politicians.chamber 
                     ? `${trade.politicians.state} • ${trade.politicians.chamber}`

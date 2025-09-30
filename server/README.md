@@ -49,8 +49,10 @@ npm install
 # Copy environment template
 cp .env.example .env
 
-# Edit .env file (optional - defaults work fine)
+# Edit .env file with your Supabase credentials
 # PORT=4000
+# SUPABASE_URL=your_supabase_url
+# SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 ```
 
 ### Step 3: Start Development Server
@@ -81,9 +83,12 @@ Create a `.env` file in the server directory:
 # Server Configuration
 PORT=4000                    # Port to run the server on
 
-# Add additional config as needed:
-# NODE_ENV=development
-# CORS_ORIGIN=http://localhost:3000
+# Frontend URL (for CORS in production)
+FRONTEND_URL=https://your-production-frontend.com
+
+# Supabase Configuration
+SUPABASE_URL=your_supabase_url
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 ```
 
 ### Available Settings
@@ -91,7 +96,9 @@ PORT=4000                    # Port to run the server on
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `PORT` | `4000` | Port number for the server |
-| `NODE_ENV` | `development` | Environment mode |
+| `FRONTEND_URL` | - | Production frontend URL (for CORS) |
+| `SUPABASE_URL` | - | Supabase project URL |
+| `SUPABASE_SERVICE_ROLE_KEY` | - | Supabase service role key (for server-side operations) |
 
 ## 🔌 API Endpoints
 
@@ -109,19 +116,76 @@ GET /api/health
 
 **Purpose:** Verify server is running and responsive
 
-### Future Endpoints
+### Politicians
 
-The server is set up to easily add more endpoints:
+#### Get All Politicians
+```http
+GET /api/politicians
+```
 
-```typescript
-// Example: Add to src/app.ts
-app.get('/api/trades', (req, res) => {
-  // Handle trades endpoint
-});
+**Response:**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "uuid",
+      "full_name": "John Doe",
+      "party": "Democrat",
+      "state": "CA",
+      "chamber": "House",
+      ...
+    }
+  ]
+}
+```
 
-app.get('/api/members', (req, res) => {
-  // Handle congress members endpoint
-});
+#### Get Politician by ID
+```http
+GET /api/politicians/:id
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "uuid",
+    "full_name": "John Doe",
+    ...
+  }
+}
+```
+
+#### Get Recent Trades
+```http
+GET /api/politicians/trades?limit=20
+```
+
+**Query Parameters:**
+- `limit` (optional): Number of trades to return (default: 20)
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "uuid",
+      "asset_name": "Apple Inc.",
+      "ticker": "AAPL",
+      "transaction_date": "2025-01-15",
+      "politicians": {
+        "id": "uuid",
+        "full_name": "John Doe",
+        "party": "Democrat",
+        "state": "CA",
+        "chamber": "House"
+      },
+      ...
+    }
+  ]
+}
 ```
 
 ## 🔧 Development
@@ -147,8 +211,18 @@ npm start
 ```
 server/
 ├── src/
-│   ├── app.ts              # Express app configuration
-│   └── index.ts            # Server entry point
+│   ├── config/
+│   │   └── supabase.ts     # Supabase client configuration
+│   ├── controllers/
+│   │   └── politicianController.ts  # Request/response handlers
+│   ├── interfaces/
+│   │   ├── Politician.ts   # Politician type definitions
+│   │   └── Trade.ts        # Trade type definitions
+│   ├── routes/
+│   │   └── politicianRoutes.ts      # API route definitions
+│   ├── services/
+│   │   └── politicianService.ts     # Business logic & DB queries
+│   └── index.ts            # Server entry point & Express config
 ├── dist/                   # Built JavaScript (after npm run build)
 ├── package.json            # Dependencies and scripts
 ├── tsconfig.json          # TypeScript configuration
@@ -158,10 +232,10 @@ server/
 
 ### Adding New Features
 
-1. **Add Routes**: Edit `src/app.ts`
-2. **Add Middleware**: Configure in `src/app.ts`
+1. **Add Routes**: Create route files in `src/routes/` and register in `src/index.ts`
+2. **Add Middleware**: Configure in `src/index.ts`
 3. **Environment Config**: Add to `.env` and load in `src/index.ts`
-4. **Type Definitions**: Create `.d.ts` files as needed
+4. **Type Definitions**: Create interface files in `src/interfaces/`
 
 ### Code Style
 

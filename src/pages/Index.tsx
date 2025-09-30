@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast'
 import { Search, TrendingUp, Users, Bell, LogOut } from 'lucide-react'
 import Footer from "@/components/Footer";
 import Header from "@/components/Header";
+import { getAllPoliticians, getRecentTrades } from '@/api/politicians';
 
 const Index = () => {
   const { user, signOut, loading: authLoading } = useAuth()
@@ -36,29 +37,13 @@ const Index = () => {
 
   const fetchData = async () => {
     try {
-      // Fetch congress members
-      const { data: membersData } = await supabase
-        .from('politicians')
-        .select('*')
-        .order('last_name', { ascending: true, nullsFirst: false })
+      // Fetch politicians from backend API
+      const membersData = await getAllPoliticians()
 
-      // Fetch recent trades with member info
-      const { data: tradesData } = await supabase
-        .from('trades')
-        .select(`
-          *,
-          politicians (
-            id,
-            full_name,
-            party,
-            state,
-            chamber
-          )
-        `)
-        .order('transaction_date', { ascending: false })
-        .limit(20)
+      // Fetch recent trades from backend API
+      const tradesData = await getRecentTrades(20)
 
-      // Fetch user follows
+      // Fetch user follows (still using Supabase directly for now)
       if (user) {
         const { data: followsData } = await supabase
           .from('user_follows')
