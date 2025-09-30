@@ -1,4 +1,4 @@
-"""Database models for the House PTR Ingestion Worker - Updated for existing schema."""
+"""Database models for the House PTR Ingestion Worker - Matches 007_create_fresh_schema.sql."""
 
 from dataclasses import dataclass
 from datetime import datetime, date
@@ -9,75 +9,115 @@ from decimal import Decimal
 
 
 @dataclass
-class CongressMember:
-    """Model for politicians table (legacy name for compatibility)."""
+class Politician:
+    """Model for politicians table - stores basic politician info without disclosure data."""
     id: Optional[str] = None  # UUID
     full_name: str = ""
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
     chamber: str = "house"
     state: Optional[str] = None
     district: Optional[str] = None
-    doc_id: Optional[str] = None
-    filing_date: Optional[datetime] = None
+    party: Optional[str] = None
+    bioguide_id: Optional[str] = None
+    external_ids: Optional[Dict[str, Any]] = None
     created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for database insertion."""
-        created_at = self.created_at or datetime.utcnow()
-        return {
+        data = {
             "full_name": self.full_name,
             "chamber": self.chamber,
-            "state": self.state,
-            "district": self.district,
-            "doc_id": self.doc_id,
-            "filing_date": self.filing_date.isoformat() if self.filing_date else None,
-            "created_at": created_at.isoformat() if isinstance(created_at, datetime) else created_at
         }
+        
+        # Only include fields that exist in the current table schema
+        # Note: first_name, last_name, party, bioguide_id, external_ids 
+        # require migration 010 to be applied first
+        if self.state:
+            data["state"] = self.state
+        if self.district:
+            data["district"] = self.district
+            
+        return data
+
+
+@dataclass
+class Disclosure:
+    """Model for disclosures table - stores each filing/disclosure."""
+    id: Optional[str] = None  # UUID
+    politician_id: str = ""  # UUID reference to politicians
+    source: str = "house_clerk"
+    doc_id: str = ""  # The DocID from the PTR filing (e.g., 40003749)
+    filing_type: Optional[str] = None  # P, A, C, D, O, X
+    filed_date: Optional[datetime] = None
+    raw: Optional[Dict[str, Any]] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for database insertion."""
+        data = {
+            "politician_id": self.politician_id,
+            "source": self.source,
+            "doc_id": self.doc_id,
+        }
+        
+        if self.filing_type:
+            data["filing_type"] = self.filing_type
+        if self.filed_date:
+            data["filed_date"] = self.filed_date.isoformat() if isinstance(self.filed_date, datetime) else self.filed_date
+        if self.raw:
+            data["raw"] = self.raw
+            
+        return data
 
 
 @dataclass
 class Trade:
-    """Model for trades table - Updated to match existing schema."""
+    """Model for trades table - stores individual trades from disclosures."""
     id: Optional[str] = None  # UUID
-    member_id: str = ""  # UUID reference to politicians
-    transaction_date: Optional[date] = None
-    disclosure_date: Optional[date] = None
+    disclosure_id: str = ""  # UUID reference to disclosures
+    politician_id: str = ""  # UUID reference to politicians
+    transaction_date: Optional[datetime] = None
+    published_at: Optional[datetime] = None
     ticker: Optional[str] = None
-    asset_description: str = ""
-    asset_type: str = "Stock"
-    transaction_type: str = "Purchase"  # Purchase, Sale, Exchange
-    amount_range: str = ""
-    amount_min: Optional[Decimal] = None
-    amount_max: Optional[Decimal] = None
+    asset_name: str = ""
+    side: Optional[str] = None  # 'buy' or 'sell'
+    amount_range: Optional[str] = None
+    notes: Optional[str] = None
+    row_hash: str = ""  # Required for deduplication
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
-    
-    # For deduplication - we'll compute this from the existing fields
-    _row_hash: Optional[str] = None
 
-    def generate_row_hash(self, source: str = "house_clerk", report_id: str = "") -> str:
-        """Generate SHA256 hash for idempotency using existing fields."""
-        # Use available fields to create a unique hash
-        hash_input = f"{source}|{report_id}|{self.asset_description}|{self.ticker or ''}|{self.transaction_type}|{self.transaction_date}|{self.amount_range}"
+    def generate_row_hash(self) -> str:
+        """Generate SHA256 hash for idempotency."""
+        hash_input = f"{self.disclosure_id}|{self.asset_name}|{self.ticker or ''}|{self.side or ''}|{self.transaction_date}|{self.amount_range or ''}"
         return hashlib.sha256(hash_input.encode()).hexdigest()
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for database insertion."""
-        created_at = self.created_at or datetime.utcnow()
-        updated_at = self.updated_at or datetime.utcnow()
-        return {
-            "member_id": self.member_id,
-            "transaction_date": self.transaction_date.isoformat() if self.transaction_date else None,
-            "disclosure_date": self.disclosure_date.isoformat() if self.disclosure_date else None,
-            "ticker": self.ticker,
-            "asset_description": self.asset_description,
-            "asset_type": self.asset_type,
-            "transaction_type": self.transaction_type,
-            "amount_range": self.amount_range,
-            "amount_min": self.amount_min,
-            "amount_max": self.amount_max,
-            "created_at": created_at.isoformat() if isinstance(created_at, datetime) else created_at,
-            "updated_at": updated_at.isoformat() if isinstance(updated_at, datetime) else updated_at
+        data = {
+            "disclosure_id": self.disclosure_id,
+            "politician_id": self.politician_id,
+            "asset_name": self.asset_name,
+            "row_hash": self.row_hash or self.generate_row_hash(),
         }
+        
+        if self.transaction_date:
+            data["transaction_date"] = self.transaction_date.isoformat() if isinstance(self.transaction_date, datetime) else self.transaction_date
+        if self.published_at:
+            data["published_at"] = self.published_at.isoformat() if isinstance(self.published_at, datetime) else self.published_at
+        if self.ticker:
+            data["ticker"] = self.ticker
+        if self.side:
+            data["side"] = self.side
+        if self.amount_range:
+            data["amount_range"] = self.amount_range
+        if self.notes:
+            data["notes"] = self.notes
+            
+        return data
 
 
 @dataclass
@@ -130,56 +170,5 @@ class ParsedTradeRow:
         }
 
 
-# Legacy models for compatibility
-@dataclass
-class Politician:
-    """Legacy model - maps to CongressMember."""
-    id: Optional[str] = None
-    full_name: str = ""
-    chamber: str = "house"
-    state: Optional[str] = None
-    district: Optional[str] = None
-    doc_id: Optional[str] = None
-    filing_date: Optional[datetime] = None
-    created_at: Optional[datetime] = None
-
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary for database insertion."""
-        created_at = self.created_at or datetime.utcnow()
-        return {
-            "full_name": self.full_name,
-            "chamber": self.chamber,
-            "state": self.state,
-            "district": self.district,
-            "doc_id": self.doc_id,
-            "filing_date": self.filing_date.isoformat() if self.filing_date else None,
-            "created_at": created_at.isoformat() if isinstance(created_at, datetime) else created_at
-        }
-
-
-@dataclass
-class Disclosure:
-    """Model for tracking disclosure metadata - stored in politicians or separate tracking."""
-    id: Optional[str] = None
-    member_id: str = ""
-    source: str = "house_clerk"
-    report_id: str = ""
-    filed_date: Optional[datetime] = None
-    published_at: Optional[datetime] = None
-    doc_url: str = ""
-    raw: Optional[Dict[str, Any]] = None
-    created_at: Optional[datetime] = None
-
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary for database insertion."""
-        created_at = self.created_at or datetime.utcnow()
-        return {
-            "member_id": self.member_id,
-            "source": self.source,
-            "report_id": self.report_id,
-            "filed_date": self.filed_date.isoformat() if self.filed_date else None,
-            "published_at": self.published_at.isoformat() if self.published_at else None,
-            "doc_url": self.doc_url,
-            "raw": self.raw or {},
-            "created_at": created_at.isoformat() if isinstance(created_at, datetime) else created_at
-        }
+# Legacy alias for compatibility
+CongressMember = Politician
