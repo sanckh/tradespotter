@@ -1234,6 +1234,17 @@
   </Member>
   <Member>
     <Prefix />
+    <Last>Bowlby</Last>
+    <First>Judy</First>
+    <Suffix />
+    <FilingType>X</FilingType>
+    <StateDst>IL15</StateDst>
+    <Year>2025</Year>
+    <FilingDate>9/29/2025</FilingDate>
+    <DocID>30025442</DocID>
+  </Member>
+  <Member>
+    <Prefix />
     <Last>Boykin</Last>
     <First>Richard</First>
     <Suffix />
@@ -1517,6 +1528,17 @@
     <Year>2025</Year>
     <FilingDate>8/25/2025</FilingDate>
     <DocID>30025387</DocID>
+  </Member>
+  <Member>
+    <Prefix />
+    <Last>Brooks</Last>
+    <First>Bob</First>
+    <Suffix />
+    <FilingType>X</FilingType>
+    <StateDst>PA07</StateDst>
+    <Year>2025</Year>
+    <FilingDate>9/29/2025</FilingDate>
+    <DocID>30025447</DocID>
   </Member>
   <Member>
     <Prefix />
@@ -2672,6 +2694,17 @@
     <Year>2025</Year>
     <FilingDate>8/25/2025</FilingDate>
     <DocID>30025389</DocID>
+  </Member>
+  <Member>
+    <Prefix />
+    <Last>Coover</Last>
+    <First>Don</First>
+    <Suffix />
+    <FilingType>X</FilingType>
+    <StateDst>KS02</StateDst>
+    <Year>2025</Year>
+    <FilingDate>9/29/2025</FilingDate>
+    <DocID>30025446</DocID>
   </Member>
   <Member>
     <Prefix />
@@ -4579,6 +4612,17 @@
   <Member>
     <Prefix />
     <Last>Gaines</Last>
+    <First>Brad</First>
+    <Suffix />
+    <FilingType>X</FilingType>
+    <StateDst>TN06</StateDst>
+    <Year>2025</Year>
+    <FilingDate>9/29/2025</FilingDate>
+    <DocID>30025441</DocID>
+  </Member>
+  <Member>
+    <Prefix />
+    <Last>Gaines</Last>
     <First>Houston</First>
     <Suffix />
     <FilingType>X</FilingType>
@@ -6071,6 +6115,17 @@
     <Year>2025</Year>
     <FilingDate>3/25/2025</FilingDate>
     <DocID>10063595</DocID>
+  </Member>
+  <Member>
+    <Prefix>Dr.</Prefix>
+    <Last>Hudspeth</Last>
+    <First>Richard</First>
+    <Suffix />
+    <FilingType>X</FilingType>
+    <StateDst>NC11</StateDst>
+    <Year>2025</Year>
+    <FilingDate>9/29/2025</FilingDate>
+    <DocID>30025443</DocID>
   </Member>
   <Member>
     <Prefix>Mr.</Prefix>
@@ -7988,6 +8043,17 @@
   </Member>
   <Member>
     <Prefix />
+    <Last>Lujan</Last>
+    <First>John</First>
+    <Suffix />
+    <FilingType>X</FilingType>
+    <StateDst>TX35</StateDst>
+    <Year>2025</Year>
+    <FilingDate>9/29/2025</FilingDate>
+    <DocID>30025450</DocID>
+  </Member>
+  <Member>
+    <Prefix />
     <Last>Lulgjuraj</Last>
     <First>Robert</First>
     <Suffix />
@@ -8447,6 +8513,17 @@
     <Year>2025</Year>
     <FilingDate>9/12/2025</FilingDate>
     <DocID>20030932</DocID>
+  </Member>
+  <Member>
+    <Prefix />
+    <Last>McClintock</Last>
+    <First>Charlie</First>
+    <Suffix />
+    <FilingType>X</FilingType>
+    <StateDst>IA02</StateDst>
+    <Year>2025</Year>
+    <FilingDate>9/29/2025</FilingDate>
+    <DocID>30025440</DocID>
   </Member>
   <Member>
     <Prefix />
@@ -9030,6 +9107,17 @@
     <Year>2025</Year>
     <FilingDate>5/19/2025</FilingDate>
     <DocID>40004778</DocID>
+  </Member>
+  <Member>
+    <Prefix />
+    <Last>Montgomery</Last>
+    <First>Brian Allen</First>
+    <Suffix />
+    <FilingType>X</FilingType>
+    <StateDst>GA01</StateDst>
+    <Year>2025</Year>
+    <FilingDate>9/29/2025</FilingDate>
+    <DocID>30025438</DocID>
   </Member>
   <Member>
     <Prefix>Hon.</Prefix>
@@ -10473,6 +10561,17 @@
     <DocID>30025397</DocID>
   </Member>
   <Member>
+    <Prefix />
+    <Last>Pixley</Last>
+    <First>Jeffrey</First>
+    <Suffix />
+    <FilingType>X</FilingType>
+    <StateDst>OK04</StateDst>
+    <Year>2025</Year>
+    <FilingDate>9/29/2025</FilingDate>
+    <DocID>30025444</DocID>
+  </Member>
+  <Member>
     <Prefix>Mr.</Prefix>
     <Last>Plumb</Last>
     <First>Nicholas Lee</First>
@@ -10504,6 +10603,17 @@
     <Year>2025</Year>
     <FilingDate>7/8/2025</FilingDate>
     <DocID>30025251</DocID>
+  </Member>
+  <Member>
+    <Prefix />
+    <Last>Polan</Last>
+    <First>Sam</First>
+    <Suffix />
+    <FilingType>X</FilingType>
+    <StateDst>IL09</StateDst>
+    <Year>2025</Year>
+    <FilingDate>9/29/2025</FilingDate>
+    <DocID>30025437</DocID>
   </Member>
   <Member>
     <Prefix />
@@ -11024,6 +11134,17 @@
   </Member>
   <Member>
     <Prefix />
+    <Last>Riley</Last>
+    <First>Paul</First>
+    <Suffix />
+    <FilingType>C</FilingType>
+    <StateDst>VA05</StateDst>
+    <Year>2025</Year>
+    <FilingDate>9/29/2025</FilingDate>
+    <DocID>10072576</DocID>
+  </Member>
+  <Member>
+    <Prefix />
     <Last>Rios</Last>
     <First>Lorenzo P.</First>
     <Suffix />
@@ -11098,6 +11219,17 @@
     <Year>2025</Year>
     <FilingDate>7/11/2025</FilingDate>
     <DocID>10070379</DocID>
+  </Member>
+  <Member>
+    <Prefix>Mrs.</Prefix>
+    <Last>Robinson</Last>
+    <First>Jazmin J.</First>
+    <Suffix />
+    <FilingType>X</FilingType>
+    <StateDst>IL07</StateDst>
+    <Year>2025</Year>
+    <FilingDate>9/29/2025</FilingDate>
+    <DocID>30025454</DocID>
   </Member>
   <Member>
     <Prefix>Mr.</Prefix>
@@ -11995,11 +12127,33 @@
     <Last>Snow</Last>
     <First>Patty</First>
     <Suffix />
+    <FilingType>C</FilingType>
+    <StateDst>OR02</StateDst>
+    <Year>2025</Year>
+    <FilingDate>9/29/2025</FilingDate>
+    <DocID>10071992</DocID>
+  </Member>
+  <Member>
+    <Prefix />
+    <Last>Snow</Last>
+    <First>Patty</First>
+    <Suffix />
     <FilingType>X</FilingType>
     <StateDst>OR02</StateDst>
     <Year>2025</Year>
     <FilingDate>8/12/2025</FilingDate>
     <DocID>30025353</DocID>
+  </Member>
+  <Member>
+    <Prefix />
+    <Last>Solis</Last>
+    <First>Hilda</First>
+    <Suffix />
+    <FilingType>X</FilingType>
+    <StateDst>CA38</StateDst>
+    <Year>2025</Year>
+    <FilingDate>9/29/2025</FilingDate>
+    <DocID>30025452</DocID>
   </Member>
   <Member>
     <Prefix />
@@ -12990,6 +13144,17 @@
     <Year>2025</Year>
     <FilingDate>8/5/2025</FilingDate>
     <DocID>30025345</DocID>
+  </Member>
+  <Member>
+    <Prefix />
+    <Last>Vang</Last>
+    <First>Mai</First>
+    <Suffix />
+    <FilingType>X</FilingType>
+    <StateDst>CA07</StateDst>
+    <Year>2025</Year>
+    <FilingDate>9/29/2025</FilingDate>
+    <DocID>30025451</DocID>
   </Member>
   <Member>
     <Prefix />

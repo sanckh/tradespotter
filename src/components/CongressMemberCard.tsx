@@ -10,12 +10,12 @@ import { Heart, HeartOff, User } from 'lucide-react'
 
 interface CongressMember {
   id: string
-  first_name: string
-  last_name: string
+  first_name: string | null
+  last_name: string | null
   full_name: string
-  state: string
-  party: string
-  chamber: string
+  state: string | null
+  party: string | null
+  chamber: string | null
   photo_url?: string
 }
 
@@ -48,7 +48,7 @@ const CongressMemberCard = ({ member, isFollowing, onFollowChange }: CongressMem
           .from('user_follows')
           .delete()
           .eq('user_id', user.id)
-          .eq('member_id', member.id)
+          .eq('politician_id', member.id)
 
         if (error) throw error
 
@@ -61,7 +61,7 @@ const CongressMemberCard = ({ member, isFollowing, onFollowChange }: CongressMem
           .from('user_follows')
           .insert([{
             user_id: user.id,
-            member_id: member.id
+            politician_id: member.id
           }])
 
         if (error) throw error
@@ -73,10 +73,11 @@ const CongressMemberCard = ({ member, isFollowing, onFollowChange }: CongressMem
       }
       
       onFollowChange()
-    } catch (error: any) {
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred'
       toast({
         title: "Error",
-        description: error.message,
+        description: errorMessage,
         variant: "destructive"
       })
     } finally {
@@ -84,7 +85,9 @@ const CongressMemberCard = ({ member, isFollowing, onFollowChange }: CongressMem
     }
   }
 
-  const getPartyColor = (party: string) => {
+  const getPartyColor = (party: string | null) => {
+    if (!party) return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
+    
     switch (party) {
       case 'Republican':
         return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
@@ -107,13 +110,19 @@ const CongressMemberCard = ({ member, isFollowing, onFollowChange }: CongressMem
         <div className="flex-1">
           <CardTitle className="text-lg">{member.full_name}</CardTitle>
           <div className="flex items-center gap-2 mt-1">
-            <Badge variant="outline" className="text-xs">
-              {member.chamber}
-            </Badge>
-            <Badge className={getPartyColor(member.party)}>
-              {member.party}
-            </Badge>
-            <span className="text-sm text-muted-foreground">{member.state}</span>
+            {member.chamber && (
+              <Badge variant="outline" className="text-xs">
+                {member.chamber}
+              </Badge>
+            )}
+            {member.party && (
+              <Badge className={getPartyColor(member.party)}>
+                {member.party}
+              </Badge>
+            )}
+            {member.state && (
+              <span className="text-sm text-muted-foreground">{member.state}</span>
+            )}
           </div>
         </div>
       </CardHeader>

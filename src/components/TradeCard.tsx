@@ -6,20 +6,19 @@ import { format } from 'date-fns'
 
 interface Trade {
   id: string
-  transaction_date: string
-  disclosure_date: string
-  ticker?: string
-  asset_description: string
-  asset_type: string
-  transaction_type: string
-  amount_range: string
+  transaction_date: string | null
+  published_at: string | null
+  ticker?: string | null
+  asset_name: string
+  side: string | null
+  amount_range: string | null
+  notes?: string | null
   politicians: {
     id: string
     full_name: string
     party: string
-    state: string
-    chamber: string
-    photo_url?: string
+    state: string | null
+    chamber: string | null
   }
 }
 
@@ -28,26 +27,31 @@ interface TradeCardProps {
 }
 
 const TradeCard = ({ trade }: TradeCardProps) => {
-  const getTransactionIcon = (type: string) => {
-    switch (type) {
-      case 'Purchase':
+  const getTransactionIcon = (side: string | null) => {
+    switch (side?.toLowerCase()) {
+      case 'buy':
         return <TrendingUp className="h-4 w-4 text-success" />
-      case 'Sale':
+      case 'sell':
         return <TrendingDown className="h-4 w-4 text-destructive" />
       default:
         return <DollarSign className="h-4 w-4 text-muted-foreground" />
     }
   }
 
-  const getTransactionColor = (type: string) => {
-    switch (type) {
-      case 'Purchase':
+  const getTransactionColor = (side: string | null) => {
+    switch (side?.toLowerCase()) {
+      case 'buy':
         return 'bg-success/10 text-success border-success/20'
-      case 'Sale':
+      case 'sell':
         return 'bg-destructive/10 text-destructive border-destructive/20'
       default:
         return 'bg-muted text-muted-foreground'
     }
+  }
+
+  const formatSide = (side: string | null) => {
+    if (!side) return 'Unknown'
+    return side.charAt(0).toUpperCase() + side.slice(1).toLowerCase()
   }
 
   const getPartyColor = (party: string) => {
@@ -67,7 +71,6 @@ const TradeCard = ({ trade }: TradeCardProps) => {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Avatar className="h-10 w-10">
-              <AvatarImage src={trade.politicians.photo_url} alt={trade.politicians.full_name} />
               <AvatarFallback>
                 <User className="h-5 w-5" />
               </AvatarFallback>
@@ -75,18 +78,22 @@ const TradeCard = ({ trade }: TradeCardProps) => {
             <div>
               <CardTitle className="text-base">{trade.politicians.full_name}</CardTitle>
               <div className="flex items-center gap-2 mt-1">
-                <Badge className={getPartyColor(trade.politicians.party)}>
-                  {trade.politicians.party}
-                </Badge>
+                {trade.politicians.party && (
+                  <Badge className={getPartyColor(trade.politicians.party)}>
+                    {trade.politicians.party}
+                  </Badge>
+                )}
                 <span className="text-xs text-muted-foreground">
-                  {trade.politicians.state} • {trade.politicians.chamber}
+                  {trade.politicians.state && trade.politicians.chamber 
+                    ? `${trade.politicians.state} • ${trade.politicians.chamber}`
+                    : trade.politicians.state || trade.politicians.chamber || 'N/A'}
                 </span>
               </div>
             </div>
           </div>
-          <Badge variant="outline" className={getTransactionColor(trade.transaction_type)}>
-            {getTransactionIcon(trade.transaction_type)}
-            {trade.transaction_type}
+          <Badge variant="outline" className={getTransactionColor(trade.side)}>
+            {getTransactionIcon(trade.side)}
+            {formatSide(trade.side)}
           </Badge>
         </div>
       </CardHeader>
@@ -94,9 +101,8 @@ const TradeCard = ({ trade }: TradeCardProps) => {
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium">
-              {trade.ticker ? `${trade.ticker} - ` : ''}{trade.asset_description}
+              {trade.ticker ? `${trade.ticker} - ` : ''}{trade.asset_name}
             </span>
-            <Badge variant="secondary">{trade.asset_type}</Badge>
           </div>
           <div className="flex items-center justify-between text-sm text-muted-foreground">
             <span className="font-medium text-foreground">{trade.amount_range}</span>
@@ -106,10 +112,10 @@ const TradeCard = ({ trade }: TradeCardProps) => {
         <div className="flex items-center justify-between text-xs text-muted-foreground border-t pt-3">
           <div className="flex items-center gap-1">
             <Calendar className="h-3 w-3" />
-            Trade: {format(new Date(trade.transaction_date), 'MMM dd, yyyy')}
+            Trade: {trade.transaction_date ? format(new Date(trade.transaction_date), 'MMM dd, yyyy') : 'N/A'}
           </div>
           <div>
-            Disclosed: {format(new Date(trade.disclosure_date), 'MMM dd, yyyy')}
+            Published: {trade.published_at ? format(new Date(trade.published_at), 'MMM dd, yyyy') : 'N/A'}
           </div>
         </div>
       </CardContent>

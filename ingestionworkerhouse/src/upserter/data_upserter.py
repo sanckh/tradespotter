@@ -248,22 +248,29 @@ class DataUpserter:
         district: Optional[str],
         filing_data: Dict[str, Any]
     ) -> Optional[Dict[str, Any]]:
-        """Upsert politician record (basic info only, no disclosure data)."""
+        """Upsert politician record with name components from PTR filing data."""
         try:
-            # Build politician data - only include fields that exist in current schema
+            # Build politician data - include name components from filing data
             politician_data = {
                 'full_name': member_name,
                 'chamber': 'house',
             }
+            
+            # Add name component fields from filing data
+            if 'first_name' in filing_data and filing_data['first_name']:
+                politician_data['first_name'] = filing_data['first_name']
+            if 'last_name' in filing_data and filing_data['last_name']:
+                politician_data['last_name'] = filing_data['last_name']
+            if 'prefix' in filing_data and filing_data['prefix']:
+                politician_data['prefix'] = filing_data['prefix']
+            if 'suffix' in filing_data and filing_data['suffix']:
+                politician_data['suffix'] = filing_data['suffix']
             
             # Add optional fields that exist in current table
             if state:
                 politician_data['state'] = state
             if district:
                 politician_data['district'] = district
-            
-            # Note: first_name, last_name, party, bioguide_id, external_ids
-            # are stored in the model but not inserted until migration 010 is applied
             
             # Upsert politician
             politician = await self.politician_repo.upsert(politician_data)

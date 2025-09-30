@@ -49,37 +49,90 @@ export type Database = {
           },
         ]
       }
+      disclosures: {
+        Row: {
+          created_at: string
+          doc_id: string
+          filed_date: string | null
+          filing_type: string | null
+          id: string
+          politician_id: string
+          raw: Json
+          source: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          doc_id: string
+          filed_date?: string | null
+          filing_type?: string | null
+          id?: string
+          politician_id: string
+          raw?: Json
+          source?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          doc_id?: string
+          filed_date?: string | null
+          filing_type?: string | null
+          id?: string
+          politician_id?: string
+          raw?: Json
+          source?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "disclosures_politician_id_fkey"
+            columns: ["politician_id"]
+            isOneToOne: false
+            referencedRelation: "politicians"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       politicians: {
         Row: {
-          chamber: string
+          bioguide_id: string | null
+          chamber: string | null
           created_at: string
           district: string | null
-          doc_id: string | null
-          filing_date: string | null
+          external_ids: Json
+          first_name: string | null
           full_name: string
           id: string
+          last_name: string | null
+          party: string | null
           state: string | null
           updated_at: string
         }
         Insert: {
-          chamber: string
+          bioguide_id?: string | null
+          chamber?: string | null
           created_at?: string
           district?: string | null
-          doc_id?: string | null
-          filing_date?: string | null
+          external_ids?: Json
+          first_name?: string | null
           full_name: string
           id?: string
+          last_name?: string | null
+          party?: string | null
           state?: string | null
           updated_at?: string
         }
         Update: {
-          chamber?: string
+          bioguide_id?: string | null
+          chamber?: string | null
           created_at?: string
           district?: string | null
-          doc_id?: string | null
-          filing_date?: string | null
+          external_ids?: Json
+          first_name?: string | null
           full_name?: string
           id?: string
+          last_name?: string | null
+          party?: string | null
           state?: string | null
           updated_at?: string
         }
@@ -120,54 +173,61 @@ export type Database = {
       }
       trades: {
         Row: {
-          amount_max: number | null
-          amount_min: number | null
-          amount_range: string
-          asset_description: string
-          asset_type: string
+          amount_range: string | null
+          asset_name: string
           created_at: string
-          disclosure_date: string
+          disclosure_id: string
           id: string
-          member_id: string
+          notes: string | null
+          politician_id: string
+          published_at: string | null
+          row_hash: string
+          side: string | null
           ticker: string | null
-          transaction_date: string
-          transaction_type: string
+          transaction_date: string | null
           updated_at: string
         }
         Insert: {
-          amount_max?: number | null
-          amount_min?: number | null
-          amount_range: string
-          asset_description: string
-          asset_type: string
+          amount_range?: string | null
+          asset_name: string
           created_at?: string
-          disclosure_date: string
+          disclosure_id: string
           id?: string
-          member_id: string
+          notes?: string | null
+          politician_id: string
+          published_at?: string | null
+          row_hash: string
+          side?: string | null
           ticker?: string | null
-          transaction_date: string
-          transaction_type: string
+          transaction_date?: string | null
           updated_at?: string
         }
         Update: {
-          amount_max?: number | null
-          amount_min?: number | null
-          amount_range?: string
-          asset_description?: string
-          asset_type?: string
+          amount_range?: string | null
+          asset_name?: string
           created_at?: string
-          disclosure_date?: string
+          disclosure_id?: string
           id?: string
-          member_id?: string
+          notes?: string | null
+          politician_id?: string
+          published_at?: string | null
+          row_hash?: string
+          side?: string | null
           ticker?: string | null
-          transaction_date?: string
-          transaction_type?: string
+          transaction_date?: string | null
           updated_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: "trades_member_id_fkey"
-            columns: ["member_id"]
+            foreignKeyName: "trades_disclosure_id_fkey"
+            columns: ["disclosure_id"]
+            isOneToOne: false
+            referencedRelation: "disclosures"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trades_politician_id_fkey"
+            columns: ["politician_id"]
             isOneToOne: false
             referencedRelation: "politicians"
             referencedColumns: ["id"]
@@ -178,25 +238,25 @@ export type Database = {
         Row: {
           created_at: string
           id: string
-          member_id: string
+          politician_id: string
           user_id: string
         }
         Insert: {
           created_at?: string
           id?: string
-          member_id: string
+          politician_id: string
           user_id: string
         }
         Update: {
           created_at?: string
           id?: string
-          member_id?: string
+          politician_id?: string
           user_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "user_follows_member_id_fkey"
-            columns: ["member_id"]
+            foreignKeyName: "user_follows_politician_id_fkey"
+            columns: ["politician_id"]
             isOneToOne: false
             referencedRelation: "politicians"
             referencedColumns: ["id"]

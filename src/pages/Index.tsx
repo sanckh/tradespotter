@@ -40,7 +40,7 @@ const Index = () => {
       const { data: membersData } = await supabase
         .from('politicians')
         .select('*')
-        .order('last_name')
+        .order('last_name', { ascending: true, nullsFirst: false })
 
       // Fetch recent trades with member info
       const { data: tradesData } = await supabase
@@ -52,8 +52,7 @@ const Index = () => {
             full_name,
             party,
             state,
-            chamber,
-            photo_url
+            chamber
           )
         `)
         .order('transaction_date', { ascending: false })
@@ -63,18 +62,19 @@ const Index = () => {
       if (user) {
         const { data: followsData } = await supabase
           .from('user_follows')
-          .select('member_id')
+          .select('politician_id')
           .eq('user_id', user.id)
 
-        setFollowedMembers(new Set(followsData?.map(f => f.member_id) || []))
+        setFollowedMembers(new Set(followsData?.map(f => f.politician_id) || []))
       }
 
       setMembers(membersData || [])
       setTrades(tradesData || [])
-    } catch (error: any) {
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to load data'
       toast({
         title: "Error loading data",
-        description: error.message,
+        description: errorMessage,
         variant: "destructive"
       })
     } finally {
@@ -96,7 +96,7 @@ const Index = () => {
 
   const filteredMembers = members.filter(member =>
     member.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    member.state.toLowerCase().includes(searchTerm.toLowerCase())
+    (member.state && member.state.toLowerCase().includes(searchTerm.toLowerCase()))
   )
 
   if (authLoading || loading) {
